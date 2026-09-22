@@ -111,6 +111,13 @@ nav.tabs button.on{color:var(--accent); font-weight:600}
 .lb.open{display:block}
 .lb img{width:100%; min-height:100%; object-fit:contain; display:block}
 .lb .round{position:fixed; top:14px; right:14px; background:rgba(255,255,255,.9); color:#000}
+.updbar{position:fixed; top:0; left:0; right:0; z-index:80; background:var(--accent); color:var(--accent-ink); padding:calc(10px + env(safe-area-inset-top)) 16px 10px; display:flex; gap:10px; align-items:center; font-size:.9rem; box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.updbar[hidden]{display:none}
+.updbar b{flex:1}
+.updbar button{border:none; border-radius:10px; padding:8px 12px; font-weight:700; background:var(--accent-ink); color:var(--accent)}
+.updbar .later{background:transparent; color:var(--accent-ink); padding:8px 6px; font-weight:400}
+.verline{font-size:.75rem; color:var(--muted); text-align:center; margin:18px 0 6px}
+.changelog{margin:8px 0 0; padding-left:1.2em; font-size:.85rem; color:var(--muted)}
 .toast{position:fixed; left:50%; bottom:90px; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:12px; font-size:.88rem; opacity:0; transition:opacity .2s; pointer-events:none; z-index:70}
 .toast.show{opacity:1}
 .page{display:none}
@@ -190,6 +197,13 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
   <header class="top"><div class="wrap"><h1>Instellingen</h1></div></header>
   <main class="wrap">
     <div class="box">
+      <h4>Over deze app</h4>
+      <p style="margin:0"><b>Versie <span id="verNr"></span></b> · <span id="verDatum"></span></p>
+      <p class="hint" id="verStatus"></p>
+      <ul class="changelog" id="verLog"></ul>
+      <button class="btn ghost" id="checkUpd" style="margin-top:10px">Controleer op updates</button>
+    </div>
+    <div class="box">
       <h4>Weergave</h4>
       <div class="row">
         <button class="chip" data-theme-set="">Automatisch</button>
@@ -240,6 +254,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 <datalist id="bronlist"></datalist>
 <div class="lb" id="lb"><button class="round" id="lbclose" aria-label="Sluiten">✕</button><img id="lbimg" alt=""></div>
 <div class="toast" id="toast"></div>
+<div class="updbar" id="updbar" hidden><b id="updtxt">Nieuwe versie beschikbaar</b><button class="later" id="updlater">Later</button><button id="updnow">Bijwerken</button></div>
 <input type="file" id="photoFile" class="hidden-input" accept="image/*">
 
 <!-- ============ RECEPTEN-DATA ============
@@ -793,6 +808,64 @@ function renderShop(){
 }
 $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",state.hideHave);renderShop()};
 
+// ---------- versiebeheer & automatische updates ----------
+// Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
+const APP_VERSION="26.9.1", APP_DATE="2026-09-22";
+const APP_LOG=["Versiebeheer: je ziet nu welke versie je gebruikt","Automatisch bijwerken zodra er een nieuwe versie online staat"];
+const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
+const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
+let remoteVer=null;
+async function fetchRemoteVersion(){
+  if(location.protocol==="file:")return null;
+  try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;const j=await r.json();return j&&j.version?j:null}catch(e){return null}
+}
+function applyUpdate(v){
+  try{sessionStorage.setItem("rb_upd_try",v)}catch(e){}
+  location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());
+}
+function showUpdBar(j){
+  $("#updtxt").textContent=`Nieuwe versie ${j.version} beschikbaar`;
+  $("#updbar").hidden=false;
+  $("#updnow").onclick=()=>applyUpdate(j.version);
+  $("#updlater").onclick=()=>{$("#updbar").hidden=true};
+}
+async function checkUpdate(opts={}){
+  const j=await fetchRemoteVersion();remoteVer=j;renderVersion();
+  if(!j)return false;
+  if(cmpVer(j.version,APP_VERSION)>0){
+    let tried="";try{tried=sessionStorage.getItem("rb_upd_try")||""}catch(e){}
+    // bij het openen meteen bijwerken; lukte dat net al niet (telefoon hield de oude versie vast), dan de balk tonen
+    if(opts.auto&&tried!==j.version&&!cur&&!$("#editor").classList.contains("open"))applyUpdate(j.version);
+    else showUpdBar(j);
+    return true;
+  }
+  return false;
+}
+function renderVersion(){
+  if(!$("#verNr"))return;
+  $("#verNr").textContent=APP_VERSION;$("#verDatum").textContent=datumNL(APP_DATE);
+  const r=remoteVer;
+  $("#verStatus").textContent=location.protocol==="file:"?"Updates controleren kan alleen als de app online staat.":
+    !r?"":cmpVer(r.version,APP_VERSION)>0?`Versie ${r.version} (${datumNL(r.datum)}) staat klaar.`:"Je hebt de nieuwste versie.";
+  const log=(r&&cmpVer(r.version,APP_VERSION)===0&&Array.isArray(r.notities))?r.notities:APP_LOG;
+  $("#verLog").innerHTML=log.map(x=>`<li>${esc(x)}</li>`).join("");
+}
+function initVersion(){
+  // adres opschonen na een update (?v=…)
+  if(/[?&]v=/.test(location.search)){try{history.replaceState(history.state,"",location.pathname)}catch(e){}}
+  const seen=store.get("seenVersion","");
+  if(seen&&seen!==APP_VERSION)setTimeout(()=>toast("Bijgewerkt naar versie "+APP_VERSION),400);
+  store.set("seenVersion",APP_VERSION);
+  try{if(sessionStorage.getItem("rb_upd_try")===APP_VERSION)sessionStorage.removeItem("rb_upd_try")}catch(e){}
+  renderVersion();
+  checkUpdate({auto:true});
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkUpdate()});
+  $("#checkUpd").onclick=async()=>{const b=$("#checkUpd");b.disabled=true;b.textContent="Bezig…";
+    const nieuw=await checkUpdate();b.disabled=false;b.textContent="Controleer op updates";
+    if(!nieuw)toast(location.protocol==="file:"?"Alleen online te controleren":remoteVer?"Je hebt de nieuwste versie":"Kon niet controleren (geen internet?)")};
+}
+
 // ---------- beheer ----------
 function renderBeheer(){
   const n=Object.keys(notes).length;
@@ -870,6 +943,7 @@ $$("nav.tabs button").forEach(b=>b.onclick=()=>{
 });
 
 renderTypes();renderBronnen();renderList();updateBadge();
+initVersion();
 pdb.loadAll().then(()=>{if(photos.size){renderList();renderFavs();if(cur)renderDetail()}});
 })();
 </script>
