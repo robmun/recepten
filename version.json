@@ -1,8 +1,7 @@
 {
-  "version": "26.9.10",
+  "version": "26.9.11",
   "datum": "2026-09-22",
   "notities": [
-    "Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd",
-    "Nieuw deelicoon bij een recept"
+    "Beheer: ontbrekende bereidingstijden laten schatten"
   ]
 }

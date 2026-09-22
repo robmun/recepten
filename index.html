@@ -636,6 +636,8 @@ function renderAdmin(){
       <div class="box"><h4>🔎 Recepten nakijken</h4>
         ${grp("Zonder ingrediënten",zonderIng)}${grp("Zonder bereiding",zonderStap)}${grp("Zonder foto",zonderFoto)}
         ${grp("Zonder (geldig) type",zonderType,r=>esc(r.type||"leeg"))}${grp("Zonder bereidingstijd",zonderTijd)}
+        ${zonderTijd.length?`<div id="a_tijdbox" style="margin:6px 0 10px"><button class="btn ghost" id="a_tijd" style="width:auto">✨ Bereidingstijd laten schatten (${zonderTijd.length})</button>
+          <p class="hint" id="a_tijdst">De AI schat de tijd aan de hand van ingrediënten en bereiding. Alleen lege tijden worden ingevuld; niets anders verandert. In het recept staat dan “± 25 min”.</p></div>`:""}
         ${grp("Dubbele titels",dubbel,r=>esc(r.bron||""))}${grp("Aangepast t.o.v. origineel",aangepast)}
         <details><summary>Aantal per type</summary><ul class="alist">${Object.entries(perType).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<li><span>${esc((EMOJI[t]||"")+" "+t)}</span><span class="sub">${n}</span></li>`).join("")}</ul></details>
       </div>
@@ -659,6 +661,7 @@ function renderAdmin(){
   $$("#admin [data-aopen]").forEach(b=>b.onclick=()=>openDetail(b.dataset.aopen));
   $$("#admin [data-bren]").forEach(b=>b.onclick=()=>renameBron(b.dataset.bren));
   $("#a_trashBtn").onclick=loadTrash;
+  if($("#a_tijd"))$("#a_tijd").onclick=schatTijden;
   $("#a_backup").onclick=adminBackup;
   if($("#a_migr"))$("#a_migr").onclick=()=>migrateLocal().then(renderAdmin);
   $("#a_resync").onclick=()=>{if(!confirm("Alle recepten opnieuw uit de gedeelde database ophalen?"))return;CLOUD.cache.clear();CLOUD.sync=0;CLOUD.psync=0;store.set("cloudpsync",0);persistCache();refreshAll();startSync();toast("Alles wordt opnieuw opgehaald")};
@@ -889,7 +892,7 @@ function renderDetail(){
         ${photos.has(r.id)?`<button class="btn ghost" id="dphotodel" style="flex:0 0 auto;width:auto;color:var(--warn)" aria-label="Eigen foto verwijderen">🗑</button>`:""}
         <button class="btn ghost" id="dedit" style="flex:0 0 auto;width:auto">✎ Bewerken</button></div>
       <h2>${esc(r.titel)}</h2>
-      ${r.tijd?`<span class="pill">⏱ ${esc(tijdTxt(r.tijd))}</span>`:""}<span class="pill">${esc(r.type||"")}</span>${(r.tags||[]).map(t=>`<span class="pill" style="background:var(--line);color:var(--ink)">${esc(t)}</span>`).join("")}
+      ${r.tijd?`<span class="pill"${r.tijdGeschat?' title="Geschatte bereidingstijd"':""}>⏱ ${r.tijdGeschat?"± ":""}${esc(tijdTxt(r.tijd))}</span>`:""}<span class="pill">${esc(r.type||"")}</span>${(r.tags||[]).map(t=>`<span class="pill" style="background:var(--line);color:var(--ink)">${esc(t)}</span>`).join("")}
       ${isAangepast(r)?`<div class="photorow"><span class="pill" style="align-self:center">✎ Aangepast</span><button class="btn ghost" id="drestore" style="flex:1">↺ Terug naar origineel recept</button></div>`:""}
       ${r.bron||safeUrl(r.url)?`<p class="srcline">Bron: <b>${esc(r.bron||"onbekend")}</b>${safeUrl(r.url)?` · <a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener noreferrer">bekijk origineel ↗</a>`:""}</p>`:""}
       <div class="box"><h4>Ingrediënten
@@ -1130,6 +1133,61 @@ const snapRecipe=r=>plainObj({titel:r.titel||"",type:r.type||"",tijd:r.tijd||nul
   ingredienten:r.ingredienten||[],stappen:r.stappen||[],benodigdheden:r.benodigdheden||[]});
 const isAangepast=r=>!!(r&&r.origineel&&JSON.stringify(snapRecipe(r))!==JSON.stringify(snapRecipe(r.origineel)));
 
+// ---------- ontbrekende bereidingstijden laten schatten (Gemini) ----------
+const TIJD_PROMPT=`Je krijgt een lijst recepten als JSON. Schat per recept de bereidingstijd in minuten: de tijd vanaf het begin tot het moment dat je kunt eten, dus snijden, koken, bakken en oventijd samen. Stappen die tegelijk kunnen, tel je niet dubbel.
+Lange passieve wachttijd (vriezer, koelkast, marineren, laten rijzen of opstijven, een nacht laten staan) tel je NIET mee in "tijd"; zet die apart in "wacht" (in minuten, anders 0). Staat er in de tekst een tijd genoemd, gebruik die.
+Rond "tijd" af op 5 minuten. Antwoord ALLEEN met JSON in deze vorm: {"<id>":{"tijd":25,"wacht":0}, ...} met precies de id's uit de invoer.`;
+let tijdBusy=null;
+async function schatTijden(){
+  if(tijdBusy){tijdBusy.stop=true;return}
+  const F=CLOUD.F||window.FB;
+  if(!CLOUD.on||!CLOUD.user||!F.getAI){toast("Werkt alleen als je bent ingelogd");return}
+  const todo=RECIPES.filter(r=>!r.tijd&&((r.ingredienten||[]).length||(r.stappen||[]).length));
+  if(!todo.length){toast("Er zijn geen recepten zonder tijd");return}
+  if(!confirm(`Voor ${todo.length} recepten de bereidingstijd laten schatten? Dit duurt een paar minuten; je kunt het scherm open laten en tussendoor stoppen.`))return;
+  const btn=$("#a_tijd"),st=()=>$("#a_tijdst");
+  const say=t=>{const e=st();if(e)e.textContent=t};
+  tijdBusy={stop:false};if(btn)btn.textContent="■ Stoppen";
+  const ai=F.getAI(CLOUD.app,{backend:new F.GoogleAIBackend()});
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  let klaar=0,fout=null;const N=25;
+  for(let i=0;i<todo.length&&!tijdBusy.stop;i+=N){
+    const deel=todo.slice(i,i+N);
+    const input=deel.map(r=>({id:r.id,titel:r.titel,porties:r.porties,
+      ingredienten:(r.ingredienten||[]).map(x=>[x.q,x.u,x.n].filter(v=>v!=null&&v!=="").join(" ")).join("; ").slice(0,700),
+      bereiding:(r.stappen||[]).join(" ").slice(0,2200)}));
+    let res=null;
+    for(let poging=0;poging<4&&!res&&!tijdBusy.stop;poging++){
+      for(const model of AI_MODELS){
+        try{const m=F.getGenerativeModel(ai,{model,generationConfig:{responseMimeType:"application/json",temperature:0.1}});
+          const out=await m.generateContent([{text:TIJD_PROMPT+"\n\n"+JSON.stringify(input)}]);
+          res=JSON.parse(out.response.text().trim().replace(/^```(?:json)?\s*/i,"").replace(/```\s*$/,""));fout=null;break;
+        }catch(e){console.error(model,e);fout=e;if(/Failed to fetch|network|quota|429|RESOURCE_EXHAUSTED/i.test(String(e&&e.message)))break}
+      }
+      if(!res&&fout&&/quota|429|RESOURCE_EXHAUSTED/i.test(String(fout.message))){say(`Even wachten (limiet van de gratis AI)… ${klaar} van ${todo.length} klaar.`);await sleep(40000)}
+      else if(!res)break;
+    }
+    if(!res)break;
+    const upd=[];
+    for(const r of deel){const x=res[r.id];const t=Math.round((parseInt(x&&x.tijd)||0)/5)*5;if(!t||t>1440)continue;
+      const w=parseInt(x.wacht)||0;
+      // haal de actuele versie op, zodat we geen wijziging van een ander overschrijven
+      const nu=byId(r.id)||r;if(nu.tijd)continue;
+      const n={...nu,tijd:t,tijdGeschat:true};
+      if(w>=30&&!(n.tags||[]).some(g=>/^⏱/.test(g)))n.tags=[...(n.tags||[]),"⏱ + "+tijdTxt(w)+" wachten"];
+      if(n.origineel&&!n.origineel.tijd)n.origineel={...n.origineel,tijd:t};
+      upd.push(n)}
+    if(upd.length){try{await cloudBulk(upd)}catch(e){fout=e;break}}
+    klaar+=deel.length;say(`Bezig: ${klaar} van ${todo.length} recepten bekeken…`);
+    await sleep(1500);
+  }
+  const gestopt=tijdBusy.stop;tijdBusy=null;
+  const over=RECIPES.filter(r=>!r.tijd).length;
+  if(fout&&!gestopt){toast("Schatten gestopt");if($("#admin").classList.contains("open")){renderAdmin();say(aiUitleg(fout).replace("Het lezen van de foto","Het schatten")+(over?` Nog ${over} zonder tijd; tik nogmaals om verder te gaan.`:""))}return}
+  toast(gestopt?"Gestopt; tik later nogmaals om verder te gaan":`Klaar: nog ${over} recepten zonder tijd`);
+  if($("#admin").classList.contains("open"))renderAdmin();
+}
+
 // ---------- editor: recept toevoegen / bewerken ----------
 let ed=null; // {id, isNew}
 function openEditor(r){
@@ -1257,6 +1315,7 @@ function openEditor(r){
       stappen:$("#e_steps").value.split("\n").map(s=>s.replace(/^(stap\s*)?\d+[.):]\s*/i,"").trim()).filter(Boolean),
       toegevoegd:ed.orig.toegevoegd||new Date().toISOString()};
     if(ed.benod)rec.benodigdheden=ed.benod;
+    if(ed.orig.tijdGeschat&&rec.tijd!==ed.orig.tijd)rec.tijdGeschat=false;
     // origineel bewaren: bij een nieuw recept de geïmporteerde versie, bij de eerste aanpassing de versie van daarvoor
     if(ed.isNew)rec.origineel=ed.importSnap||snapRecipe(rec);
     else if(!ed.orig.origineel)rec.origineel=snapRecipe(ed.orig);
@@ -1336,8 +1395,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.10", APP_DATE="2026-09-22";
-const APP_LOG=["Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.11", APP_DATE="2026-09-22";
+const APP_LOG=["Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
