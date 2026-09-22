@@ -487,16 +487,17 @@ async function onCloudUser(u){
   try{
     if(CLOUD.justLoggedIn){
       res=await F.runTransaction(db,async tx=>{
-        const s=await tx.get(ref);const d=s.exists()?s.data():null;
-        if(d&&d.deviceId&&d.deviceId!==deviceId())return"bezet";
-        if(d&&d.deviceId===deviceId()){tx.update(ref,{laatstGezien:F.serverTimestamp(),appVersie:APP_VERSION,deviceInfo:deviceInfo(),email:u.email||""});return"ok"}
+        const s=await tx.get(ref);const d=s.exists()?s.data():null;CLOUD.myDoc=d;
+        if(d&&d.deviceId&&d.deviceId!==deviceId()&&!CLOUD.isAdmin)return"bezet";
+        // de beheerder mag op meerdere toestellen: het eerste toestel blijft staan, de rest werkt gewoon mee
+        if(d&&(d.deviceId===deviceId()||(CLOUD.isAdmin&&d.deviceId))){tx.update(ref,{laatstGezien:F.serverTimestamp(),appVersie:APP_VERSION,deviceInfo:deviceInfo(),email:u.email||""});return"ok"}
         const data={naam:CLOUD.naam,email:u.email||"",deviceId:deviceId(),deviceInfo:deviceInfo(),gekoppeldOp:F.serverTimestamp(),laatstGezien:F.serverTimestamp(),appVersie:APP_VERSION};
         if(d)tx.update(ref,data);else tx.set(ref,data);
         return"ok";
       });
     }else{
-      const s=await F.getDoc(ref);const d=s.exists()?s.data():null;
-      res=d&&d.deviceId===deviceId()?"ok":"los";
+      const s=await F.getDoc(ref);const d=s.exists()?s.data():null;CLOUD.myDoc=d;
+      res=d&&(d.deviceId===deviceId()||(CLOUD.isAdmin&&d.deviceId))?"ok":"los";
       if(res==="ok")F.updateDoc(ref,{laatstGezien:F.serverTimestamp(),appVersie:APP_VERSION,deviceInfo:deviceInfo(),email:u.email||""}).catch(()=>{});
     }
   }catch(e){
@@ -618,8 +619,8 @@ async function loadUsers(){
   try{const s=await F.getDocs(F.collection(CLOUD.db,"users"));const rows=[];s.forEach(d=>rows.push({uid:d.id,...d.data()}));
     rows.sort((a,b)=>String(a.naam).localeCompare(String(b.naam),"nl"));
     CLOUD.userNames=Object.fromEntries(rows.map(u=>[u.uid,u.naam||"?"]));
-    el.innerHTML=rows.length?rows.map(u=>`<div class="urow"><div><b>${esc(u.naam||"?")}</b><span class="hint">${u.deviceId?`📱 ${esc(u.deviceInfo||"toestel")} · gekoppeld ${dtNL(u.gekoppeldOp)}`:"Geen toestel gekoppeld"}<br>Laatst gezien ${dtNL(u.laatstGezien)} · versie ${esc(u.appVersie||"–")}${u.appVersie&&cmpVer(u.appVersie,APP_VERSION)<0?" ⚠︎ verouderd":""}</span></div>
-      <div class="btns">${u.deviceId?`<button class="btn ghost" data-reset="${esc(u.uid)}" data-naam="${esc(u.naam||"")}">Ontkoppel</button>`:""}${u.email?`<button class="btn ghost" data-mail="${esc(u.email)}" data-naam="${esc(u.naam||"")}">Resetmail</button>`:""}</div></div>`).join("")+
+    el.innerHTML=rows.length?rows.map(u=>`<div class="urow"><div><b>${esc(u.naam||"?")}</b><span class="hint">${String(u.email||"").toLowerCase()===ADMIN_EMAIL?`💻📱 Meerdere toestellen (beheerder) · laatst op ${esc(u.deviceInfo||"toestel")}`:u.deviceId?`📱 ${esc(u.deviceInfo||"toestel")} · gekoppeld ${dtNL(u.gekoppeldOp)}`:"Geen toestel gekoppeld"}<br>Laatst gezien ${dtNL(u.laatstGezien)} · versie ${esc(u.appVersie||"–")}${u.appVersie&&cmpVer(u.appVersie,APP_VERSION)<0?" ⚠︎ verouderd":""}</span></div>
+      <div class="btns">${u.deviceId&&String(u.email||"").toLowerCase()!==ADMIN_EMAIL?`<button class="btn ghost" data-reset="${esc(u.uid)}" data-naam="${esc(u.naam||"")}">Ontkoppel</button>`:""}${u.email?`<button class="btn ghost" data-mail="${esc(u.email)}" data-naam="${esc(u.naam||"")}">Resetmail</button>`:""}</div></div>`).join("")+
       `<p class="hint" style="margin-top:8px">Nieuwe gezinsleden maak je aan in de Firebase-console › Authentication › Users, met hun eigen e-mailadres. Ze verschijnen hier na hun eerste keer inloggen.</p>`
       :'<p class="hint">Nog niemand ingelogd.</p>';
     $$("#a_users [data-reset]").forEach(b=>b.onclick=async()=>{
@@ -733,16 +734,19 @@ async function adminBackup(){
   if(navigator.canShare&&navigator.canShare({files:[file]})&&/iPhone|iPad|Android/i.test(navigator.userAgent)){
     try{await navigator.share({files:[file],title:"Recepten back-up "+datum});}catch(e){if(e&&e.name==="AbortError"){toast("Back-up niet bewaard");return}download(file)}
   }else download(file);
-  store.set("lastBackup",Date.now());store.set("backupSnooze",0);$("#bkbar").hidden=true;
+  store.set("lastBackup",Date.now());store.set("backupSnooze",0);
+  if(CLOUD.on&&CLOUD.user){const F=CLOUD.F;CLOUD.myDoc={...(CLOUD.myDoc||{}),laatsteBackup:F.Timestamp.fromMillis(Date.now())};
+    F.updateDoc(F.doc(CLOUD.db,"users",CLOUD.user.uid),{laatsteBackup:F.serverTimestamp()}).catch(e=>console.error(e))}$("#bkbar").hidden=true;
   toast(`Back-up gemaakt (${mb} MB)`);
   if($("#admin").classList.contains("open"))renderAdmin();
 }
-function lastBackupTxt(){const t=store.get("lastBackup",0);return t?new Date(t).toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"}):"nog nooit"}
+const lastBackupMs=()=>Math.max(store.get("lastBackup",0)||0,tsMs(CLOUD.myDoc&&CLOUD.myDoc.laatsteBackup)||0);
+function lastBackupTxt(){const t=lastBackupMs();return t?new Date(t).toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"}):"nog nooit"}
 // maandelijkse herinnering (alleen voor de beheerder)
 function checkBackupReminder(){
   if(!CLOUD.isAdmin)return;const nu=Date.now(),dag=864e5;
-  if(nu-store.get("lastBackup",0)<30*dag||nu<store.get("backupSnooze",0))return;
-  const t=store.get("lastBackup",0);
+  if(nu-lastBackupMs()<30*dag||nu<store.get("backupSnooze",0))return;
+  const t=lastBackupMs();
   $("#bktxt").textContent=t?`Je laatste back-up is van ${lastBackupTxt()}. Tijd voor een nieuwe?`:"Je hebt nog geen back-up van de recepten. Nu maken?";
   $("#bkbar").hidden=false;
   $("#bklater").onclick=()=>{store.set("backupSnooze",nu+7*dag);$("#bkbar").hidden=true};
@@ -1542,8 +1546,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.12", APP_DATE="2026-09-22";
-const APP_LOG=["Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.13", APP_DATE="2026-09-22";
+const APP_LOG=["Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};

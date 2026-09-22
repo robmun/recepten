@@ -1,8 +1,7 @@
 {
-  "version": "26.9.12",
+  "version": "26.9.13",
   "datum": "2026-09-22",
   "notities": [
-    "Kookmodus: grotere tekst, scherm blijft aan en timers",
-    "Beheer: foto's veiligstellen en maandelijkse back-upherinnering"
+    "Beheerder kan op meerdere toestellen inloggen"
   ]
 }
