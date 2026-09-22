@@ -391,7 +391,7 @@ function matches(r){
   if(state.max&&r.tijd&&r.tijd>+state.max)return false;
   const terms=norm(state.q).split(",").map(s=>s.trim()).filter(Boolean);
   if(!terms.length)return true;
-  const hay=norm(r.titel+" | "+(r.ingredienten||[]).map(i=>i.n).join(" | ")+" | "+(notes[r.id]||"")+" | "+(r.tags||[]).join(" "));
+  const hay=norm(r.titel+" | "+(r.ingredienten||[]).map(i=>i.n).join(" | ")+" | "+(notes[r.id]||"")+" | "+(r.tags||[]).join(" ")+" | "+(r.trefwoorden||""));
   return terms.every(t=>hay.includes(t));
 }
 function cardHTML(r){
