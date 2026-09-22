@@ -282,7 +282,7 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const mem={};
 const store={
   get(k,d){try{const v=localStorage.getItem("rb_"+k);return v==null?(k in mem?mem[k]:d):JSON.parse(v)}catch(e){return k in mem?mem[k]:d}},
-  set(k,v){mem[k]=v;try{localStorage.setItem("rb_"+k,JSON.stringify(v))}catch(e){}}
+  set(k,v){mem[k]=v;try{localStorage.setItem("rb_"+k,JSON.stringify(v));return true}catch(e){if(k==="extra"||k==="notes")setTimeout(()=>alert("Let op: de opslag van deze browser is vol. De laatste wijziging is alleen tijdelijk bewaard. Verwijder eigen foto's of recepten, of exporteer je gegevens."),50);return false}}
 };
 
 // ---------- data ----------
@@ -391,7 +391,7 @@ function matches(r){
   if(state.max&&r.tijd&&r.tijd>+state.max)return false;
   const terms=norm(state.q).split(",").map(s=>s.trim()).filter(Boolean);
   if(!terms.length)return true;
-  const hay=norm(r.titel+" | "+(r.ingredienten||[]).map(i=>i.n).join(" | ")+" | "+(notes[r.id]||""));
+  const hay=norm(r.titel+" | "+(r.ingredienten||[]).map(i=>i.n).join(" | ")+" | "+(notes[r.id]||"")+" | "+(r.tags||[]).join(" "));
   return terms.every(t=>hay.includes(t));
 }
 function cardHTML(r){
@@ -460,11 +460,12 @@ function renderDetail(){
         ${photos.has(r.id)?`<button class="btn ghost" id="dphotodel" style="flex:0 0 auto;width:auto;color:var(--warn)" aria-label="Eigen foto verwijderen">🗑</button>`:""}
         <button class="btn ghost" id="dedit" style="flex:0 0 auto;width:auto">✎ Bewerken</button></div>
       <h2>${esc(r.titel)}</h2>
-      <span class="pill">⏱ ${esc(tijdTxt(r.tijd))}</span><span class="pill">${esc(r.type||"")}</span>
+      <span class="pill">⏱ ${esc(tijdTxt(r.tijd))}</span><span class="pill">${esc(r.type||"")}</span>${(r.tags||[]).map(t=>`<span class="pill" style="background:var(--line);color:var(--ink)">${esc(t)}</span>`).join("")}
       ${r.bron||safeUrl(r.url)?`<p class="srcline">Bron: <b>${esc(r.bron||"onbekend")}</b>${safeUrl(r.url)?` · <a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener noreferrer">bekijk origineel ↗</a>`:""}</p>`:""}
       <div class="box"><h4>Ingrediënten
         <span class="stepper"><button id="pmin" aria-label="Minder porties">−</button><span>${p} ${p===1?"portie":"porties"}</span><button id="pplus" aria-label="Meer porties">+</button></span></h4>
         <ul class="ing">${ings}</ul>
+        ${(r.benodigdheden||[]).length?`<p class="hint" style="margin-top:10px"><b>Benodigdheden:</b> ${esc(r.benodigdheden.join(", "))}</p>`:""}
         <div style="margin-top:12px"><button class="btn" id="toShop">🛒 Op boodschappenlijst</button></div>
       </div>
       <div class="box"><h4>Bereiding <label class="toggle"><input type="checkbox" id="wake" ${wake?"checked":""}> Scherm aan</label></h4>
@@ -817,6 +818,18 @@ function renderBeheer(){
   $("#dbinfo").textContent=`${RECIPES.length} recepten · ${favs.size} favorieten · ${n} met notities · ${photos.size} eigen foto${photos.size===1?"":"'s"}.`;
   if(location.protocol==="file:")$("#shareinfo").innerHTML=`Je opent de app nu als los bestand op dit apparaat, dus er is nog geen link om te delen. Zet <b>index.html</b> online (bijv. via Netlify Drop of GitHub Pages) om een deelbare link te krijgen. Je receptenboek als bestand delen werkt wel.`;
 }
+// Recepten van buiten (import) netjes maken: ingrediënten mogen ook gewone tekstregels zijn
+function normRecipe(r){
+  r={...r};
+  r.ingredienten=(r.ingredienten||[]).map(i=>typeof i==="string"?parseIng(i):(i&&i.n?i:null)).filter(Boolean);
+  r.stappen=(r.stappen||[]).map(s=>String(s).trim()).filter(Boolean);
+  if(r.type&&!TYPES.includes(r.type))r.type=guessType(r.type)||r.type;
+  if(!r.type)r.type=guessType(r.titel)||"Hoofdgerecht";
+  r.porties=Math.max(1,parseInt(r.porties)||2);
+  r.foto=safeImg(r.foto);r.url=safeUrl(r.url);
+  delete r.onvolledig;
+  return r;
+}
 // Importeer: een lijst met recepten óf een volledig receptenboek-bestand (uit "Deel mijn receptenboek" / "Exporteer")
 function importData(obj){
   let recs=[],nNotes=0,nPhotos=0;
@@ -831,7 +844,7 @@ function importData(obj){
       store.set("notes",notes);store.set("favs",[...favs]);
     }
   }
-  recs=recs.filter(r=>r&&r.id&&r.titel);
+  recs=recs.filter(r=>r&&r.id&&r.titel).map(normRecipe);
   const extra=new Map(store.get("extra",[]).map(r=>[r.id,r]));recs.forEach(r=>extra.set(r.id,r));
   store.set("extra",[...extra.values()]);refreshAll();renderBeheer();
   toast(`${recs.length} recept(en) geïmporteerd`+(nNotes?` · ${nNotes} notities`:"")+(nPhotos?` · ${nPhotos} foto's`:""));
