@@ -97,6 +97,26 @@ nav.tabs button.on{color:var(--accent); font-weight:600}
 .steps{margin:0; padding-left:1.4em}
 .steps li{margin:0 0 12px; padding-left:4px}
 .steps li.done{opacity:.4; text-decoration:line-through}
+#detail.cook .steps{font-size:2em; line-height:1.35; padding-left:1.3em}
+#detail.cook .steps li{margin-bottom:.8em}
+#detail.cook .ing{font-size:1.25em}
+.tbtn{display:none; font:inherit; font-size:.9em; font-weight:700; color:var(--accent-ink); background:var(--accent); border:none; border-radius:.5em; padding:.05em .4em; margin:0 .1em; cursor:pointer; white-space:nowrap}
+#detail.cook .tbtn{display:inline}
+.cookbtn{border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:999px; padding:6px 12px; font:inherit; font-size:.85rem; font-weight:600; cursor:pointer}
+.cookbtn.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+.timers{position:fixed; left:0; right:0; bottom:calc(62px + env(safe-area-inset-bottom)); z-index:90; display:flex; flex-direction:column; gap:6px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); pointer-events:none}
+.timers[hidden]{display:none}
+.timers.indetail{bottom:0}
+body.hastimer #detail .wrap, body.hastimer main.wrap{padding-bottom:120px}
+.timer{pointer-events:auto; display:flex; align-items:center; gap:10px; background:var(--accent); color:var(--accent-ink); border-radius:14px; padding:10px 12px; box-shadow:0 6px 20px rgba(0,0,0,.25); max-width:560px; width:100%; margin:0 auto}
+.timer .tl{flex:1; min-width:0; font-size:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.timer .tt{font-size:1.5rem; font-weight:800; font-variant-numeric:tabular-nums}
+.timer button{border:none; background:rgba(255,255,255,.2); color:inherit; border-radius:10px; min-width:40px; height:40px; font-size:1.05rem; cursor:pointer}
+.timer.af{background:var(--warn); animation:tpuls 1s infinite}
+@keyframes tpuls{50%{opacity:.8}}
+.bkbar{position:fixed; left:12px; right:12px; bottom:calc(76px + env(safe-area-inset-bottom)); z-index:70; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:12px; box-shadow:0 6px 20px rgba(0,0,0,.18); display:flex; gap:10px; align-items:center; max-width:560px; margin:0 auto; font-size:.9rem}
+.bkbar[hidden]{display:none}
+.bkbar b{flex:1}
 .btn{border:none; border-radius:12px; padding:12px 16px; background:var(--accent); color:var(--accent-ink); font-weight:600; width:100%}
 .btn.ghost{background:var(--card); color:var(--ink); border:1px solid var(--line)}
 .toggle{display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--muted)}
@@ -295,6 +315,8 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
   <p class="status bad" id="l_err"></p>
   <button type="button" class="btn ghost" id="l_forgot" style="margin-top:14px;font-weight:400">Wachtwoord vergeten?</button>
 </div></div>
+<div class="timers" id="timers" hidden></div>
+<div class="bkbar" id="bkbar" hidden><b id="bktxt">Tijd voor een back-up</b><button class="btn ghost" id="bklater" style="width:auto">Later</button><button class="btn" id="bknow" style="width:auto">Nu maken</button></div>
 <div class="updbar" id="updbar" hidden><b id="updtxt">Nieuwe versie beschikbaar</b><button class="later" id="updlater">Later</button><button id="updnow">Bijwerken</button></div>
 <input type="file" id="photoFile" class="hidden-input" accept="image/*">
 
@@ -489,7 +511,7 @@ async function onCloudUser(u){
     return;
   }
   store.set("cloudUser",u.uid);
-  hideLogin();renderAccount();await CLOUD.cacheReady;startSync();loadPrivate();
+  hideLogin();renderAccount();await CLOUD.cacheReady;startSync();loadPrivate();setTimeout(checkBackupReminder,4000);
 }
 function stopSync(){CLOUD.unsub.forEach(f=>{try{f()}catch(e){}});CLOUD.unsub=[]}
 function setSync(t){CLOUD.status=t;const el=$("#syncStatus");if(el)el.textContent=t}
@@ -629,7 +651,7 @@ function renderAdmin(){
       <div class="stats">
         <div class="stat"><b>${R.length}</b><span>recepten</span></div>
         <div class="stat"><b>${Object.keys(bron).length}</b><span>bronnen</span></div>
-        <div class="stat"><b>${nf}</b><span>eigen foto's</span></div>
+        <div class="stat"><b>${nf}</b><span>foto's bewaard</span></div>
         <div class="stat"><b id="a_nusers">–</b><span>gezinsleden</span></div>
       </div>
       <div class="box"><h4>👥 Gezinsleden</h4><div id="a_users"></div></div>
@@ -648,8 +670,11 @@ function renderAdmin(){
       <div class="box"><h4>🕑 Laatste activiteit</h4><div id="a_act"></div></div>
       <div class="box"><h4>🗑 Prullenbak</h4><p class="hint">Verwijderde recepten blijven bewaard en kun je hier terugzetten.</p>
         <button class="btn ghost" id="a_trashBtn" style="width:auto">Verwijderde recepten tonen</button><div id="a_trash"></div></div>
+      <div class="box"><h4>📷 Foto's veiligstellen</h4>
+        <div id="a_fotobox"></div>
+      </div>
       <div class="box"><h4>💾 Back-up & onderhoud</h4>
-        <p class="hint">De back-up bevat alle recepten (met notities en bron), alle eigen foto's en jouw favorieten.</p>
+        <p class="hint">De back-up bevat alle recepten (met notities en bron), alle foto's uit je database en jouw favorieten. Laatste back-up: <b>${lastBackupTxt()}</b>. Je krijgt elke maand een herinnering.</p>
         <div class="row" style="margin-top:8px">
           <button class="btn" id="a_backup" style="width:auto">⬇︎ Back-up downloaden</button>
           ${localOnly().length?`<button class="btn ghost" id="a_migr" style="width:auto">⬆︎ ${localOnly().length} recepten van dit toestel delen</button>`:""}
@@ -663,6 +688,7 @@ function renderAdmin(){
   $("#a_trashBtn").onclick=loadTrash;
   if($("#a_tijd"))$("#a_tijd").onclick=schatTijden;
   $("#a_backup").onclick=adminBackup;
+  renderFotoBox();
   if($("#a_migr"))$("#a_migr").onclick=()=>migrateLocal().then(renderAdmin);
   $("#a_resync").onclick=()=>{if(!confirm("Alle recepten opnieuw uit de gedeelde database ophalen?"))return;CLOUD.cache.clear();CLOUD.sync=0;CLOUD.psync=0;store.set("cloudpsync",0);persistCache();refreshAll();startSync();toast("Alles wordt opnieuw opgehaald")};
   renderActivity();
@@ -698,11 +724,72 @@ async function loadTrash(){
       try{await F.deleteDoc(F.doc(CLOUD.db,"recipes",b.dataset.purge));F.deleteDoc(F.doc(CLOUD.db,"photos",b.dataset.purge)).catch(()=>{});toast("Definitief verwijderd");loadTrash()}catch(e){cloudErr("Verwijderen",e)}});
   }catch(e){el.innerHTML=`<p class="hint">Kon de prullenbak niet laden (${esc(e.code||e.message)}).</p>`}
 }
-function adminBackup(){
+async function adminBackup(){
   const datum=new Date().toISOString().slice(0,10);
   const data={type:"receptenboek",versie:2,datum,herkomst:"back-up",extraRecepten:recList().map(toCloud),fotos:Object.fromEntries(photos),favorieten:[...favs]};
-  download(new File([JSON.stringify(data)],`recepten-backup-${datum}.json`,{type:"application/json"}));
-  toast("Back-up gedownload");
+  const file=new File([JSON.stringify(data)],`recepten-backup-${datum}.json`,{type:"application/json"});
+  const mb=(file.size/1048576).toFixed(file.size>10485760?0:1);
+  // op de iPhone via het deelmenu, zodat je hem in Bestanden/iCloud Drive kunt bewaren
+  if(navigator.canShare&&navigator.canShare({files:[file]})&&/iPhone|iPad|Android/i.test(navigator.userAgent)){
+    try{await navigator.share({files:[file],title:"Recepten back-up "+datum});}catch(e){if(e&&e.name==="AbortError"){toast("Back-up niet bewaard");return}download(file)}
+  }else download(file);
+  store.set("lastBackup",Date.now());store.set("backupSnooze",0);$("#bkbar").hidden=true;
+  toast(`Back-up gemaakt (${mb} MB)`);
+  if($("#admin").classList.contains("open"))renderAdmin();
+}
+function lastBackupTxt(){const t=store.get("lastBackup",0);return t?new Date(t).toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"}):"nog nooit"}
+// maandelijkse herinnering (alleen voor de beheerder)
+function checkBackupReminder(){
+  if(!CLOUD.isAdmin)return;const nu=Date.now(),dag=864e5;
+  if(nu-store.get("lastBackup",0)<30*dag||nu<store.get("backupSnooze",0))return;
+  const t=store.get("lastBackup",0);
+  $("#bktxt").textContent=t?`Je laatste back-up is van ${lastBackupTxt()}. Tijd voor een nieuwe?`:"Je hebt nog geen back-up van de recepten. Nu maken?";
+  $("#bkbar").hidden=false;
+  $("#bklater").onclick=()=>{store.set("backupSnooze",nu+7*dag);$("#bkbar").hidden=true};
+  $("#bknow").onclick=()=>{$("#bkbar").hidden=true;adminBackup()};
+}
+// ---------- foto's van internet in de eigen database zetten ----------
+const webFotoRecs=()=>RECIPES.filter(r=>/^https?:\/\//i.test(r.foto||""));
+let fotoBusy=null;
+function renderFotoBox(){
+  const el=$("#a_fotobox");if(!el)return;
+  const web=webFotoRecs(),todo=web.filter(r=>!photos.has(r.id));
+  el.innerHTML=`<p class="hint">${web.length-todo.length} van de ${web.length} foto's die van internet komen (zoals die van NewFysic) staan in je eigen database. Die blijven bewaard als de website ze weghaalt en zijn ook zonder internet te zien.</p>
+    ${todo.length||fotoBusy?`<button class="btn" id="a_foto" style="width:auto;margin-top:6px">${fotoBusy?"■ Stoppen":`📥 ${todo.length} foto's veiligstellen`}</button>`:'<p class="hint">✓ Alles staat veilig.</p>'}
+    <p class="hint" id="a_fotost"></p>`;
+  if($("#a_foto"))$("#a_foto").onclick=veiligFotos;
+}
+function blobNaarData(blob){return resizeImage(blob,900,.72).then(d=>d.length>900000?resizeImage(blob,700,.6):d)}
+async function haalFoto(url,route){
+  const tries=route==="proxy"?["proxy"]:["direct","proxy"];let last;
+  for(const t of tries){
+    try{const u=t==="direct"?url:`https://wsrv.nl/?url=${encodeURIComponent(url)}&w=900&output=jpg&q=75`;
+      const res=await fetch(u,{mode:"cors",cache:"no-store"});if(!res.ok)throw new Error("HTTP "+res.status);
+      const blob=await res.blob();if(!/^image\//.test(blob.type)&&blob.size<500)throw new Error("geen afbeelding");
+      return {data:await blobNaarData(blob),route:t};
+    }catch(e){last=e}
+  }
+  throw last;
+}
+async function veiligFotos(){
+  if(fotoBusy){fotoBusy.stop=true;return}
+  if(!CLOUD.on||!CLOUD.user){toast("Werkt alleen als je bent ingelogd");return}
+  const todo=webFotoRecs().filter(r=>!photos.has(r.id));if(!todo.length)return;
+  fotoBusy={stop:false};renderFotoBox();
+  const say=t=>{const e=$("#a_fotost");if(e)e.textContent=t};
+  let ok=0,mis=0,route=null,i=0;
+  const worker=async()=>{while(i<todo.length&&!fotoBusy.stop){const r=todo[i++];
+    try{const f=await haalFoto(r.foto,route);if(f.route==="proxy")route="proxy";
+      if(photos.has(r.id))continue; // intussen door iemand anders gedaan
+      pdb.put(r.id,f.data);await cloudSavePhoto(r.id,f.data);ok++}
+    catch(e){mis++;console.warn("foto",r.id,e)}
+    say(`Bezig: ${ok+mis} van ${todo.length} (${ok} bewaard${mis?`, ${mis} niet gelukt`:""})…`);
+    if(mis>=12&&!ok){fotoBusy.stop=true;say("Het ophalen van de foto's lukt niet (geen internet, of de website staat het niet toe).")}}};
+  await Promise.all([worker(),worker(),worker()]);
+  const gestopt=fotoBusy.stop&&ok+mis<todo.length;fotoBusy=null;
+  renderList();renderFavs();
+  if($("#admin").classList.contains("open")){renderFotoBox();if(ok||mis)say(`${ok} foto's bewaard${mis?`, ${mis} niet gelukt (die foto bestaat waarschijnlijk niet meer)`:""}${gestopt?". Gestopt; tik nogmaals om verder te gaan.":"."}`)}
+  toast(`${ok} foto's veiliggesteld`);
 }
 function initAccountUI(){
   if(!$("#accountBox"))return;
@@ -864,7 +951,7 @@ $("#maxtijd").onchange=e=>{state.max=e.target.value;renderList()};
 $("#sort").onchange=e=>{state.sort=e.target.value;renderList()};
 
 // ---------- detail ----------
-let cur=null, wake=null;
+let cur=null, wake=null, cookOn=false;
 function openDetail(id){
   const r=byId(id);if(!r)return;
   cur={r,p:r.porties||1,done:new Set()};
@@ -872,7 +959,7 @@ function openDetail(id){
   document.body.style.overflow="hidden";
   history.pushState({d:1},"");
 }
-function closeDetail(){$("#detail").classList.remove("open");document.body.style.overflow="";cur=null;releaseWake()}
+function closeDetail(){$("#detail").classList.remove("open");document.body.style.overflow="";cur=null;cookOn=false;$("#detail").classList.remove("cook");releaseWake()}
 window.addEventListener("popstate",()=>{
   if($("#lb").classList.contains("open"))$("#lb").classList.remove("open");
   else if($("#editor").classList.contains("open"))closeEditor();
@@ -881,7 +968,8 @@ window.addEventListener("popstate",()=>{
 function renderDetail(){
   const {r,p}=cur, f=p/(r.porties||1);
   const ings=(r.ingredienten||[]).map(i=>`<li><span class="q">${esc(i.q==null?"":fmt(i.q*f)+(i.u?" "+i.u:""))}</span><span>${esc(i.n)}</span></li>`).join("");
-  const steps=(r.stappen||[]).map((s,k)=>`<li data-step="${k}" class="${cur.done.has(k)?"done":""}">${esc(s)}</li>`).join("");
+  const steps=(r.stappen||[]).map((s,k)=>`<li data-step="${k}" class="${cur.done.has(k)?"done":""}">${timerHTML(s,k)}</li>`).join("");
+  $("#detail").classList.toggle("cook",cookOn);
   $("#detail").innerHTML=`
     <div class="dhead"><button class="round" id="dback" aria-label="Terug">←</button>
       <span style="display:flex;gap:8px"><button class="round" id="dshare" aria-label="Deel recept"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M8 9H6.5A1.5 1.5 0 0 0 5 10.5v9A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 17.5 9H16"/><path d="M12 14V3"/><path d="M8.5 6.5 12 3l3.5 3.5"/></svg></button>
@@ -901,9 +989,9 @@ function renderDetail(){
         ${(r.benodigdheden||[]).length?`<p class="hint" style="margin-top:10px"><b>Benodigdheden:</b> ${esc(r.benodigdheden.join(", "))}</p>`:""}
         <div style="margin-top:12px"><button class="btn" id="toShop">🛒 Op boodschappenlijst</button></div>
       </div>
-      <div class="box"><h4>Bereiding <label class="toggle"><input type="checkbox" id="wake" ${wake?"checked":""}> Scherm aan</label></h4>
+      <div class="box" id="dsteps"><h4>Bereiding <button class="cookbtn ${cookOn?"on":""}" id="dcook" aria-pressed="${cookOn}">👩‍🍳 Kookmodus${cookOn?" aan":""}</button></h4>
         <ol class="steps">${steps}</ol>
-        <p class="hint">Tik op een stap om hem af te vinken.</p>
+        <p class="hint">${cookOn?"Het scherm blijft aan. Tik op een tijd om een timer te starten, en op een stap om hem af te vinken.":"Tik op een stap om hem af te vinken. Kookmodus: grotere tekst, scherm blijft aan en timers."}</p>
       </div>
       <div class="box"><h4>📝 Mijn notities <span class="saved" id="nsaved">Opgeslagen ✓</span></h4>
         <textarea class="notes" id="dnotes" placeholder="Bijv. minder zout, 5 min langer in de oven, lekker met rijst…">${esc(noteOf(r.id))}</textarea>
@@ -929,11 +1017,70 @@ function renderDetail(){
     const o=r.origineel;const nr={...r,...plainObj(o),origineel:o};saveExtra(nr);cur.r=byId(r.id)||nr;renderDetail();toast("Originele recept teruggezet");
   };
   $("#dimg").onclick=()=>{$("#lbimg").src=img(r);$("#lb").classList.add("open");history.pushState({lb:1},"")};
-  $$("#detail [data-step]").forEach(li=>li.onclick=()=>{const k=+li.dataset.step;cur.done.has(k)?cur.done.delete(k):cur.done.add(k);li.classList.toggle("done")});
-  $("#wake").onchange=e=>e.target.checked?requestWake():releaseWake();
+  $$("#detail [data-step]").forEach(li=>li.onclick=e=>{if(e.target.closest(".tbtn"))return;const k=+li.dataset.step;cur.done.has(k)?cur.done.delete(k):cur.done.add(k);li.classList.toggle("done")});
+  $$("#detail .tbtn").forEach(b=>b.onclick=e=>{e.stopPropagation();startTimer(+b.dataset.sec,`${r.titel} · stap ${+b.dataset.k+1}`)});
+  $("#dcook").onclick=()=>{cookOn=!cookOn;if(cookOn){requestWake();unlockAudio()}else releaseWake();renderDetail();
+    if(cookOn)setTimeout(()=>{const el=$("#dsteps");if(el)el.scrollIntoView({behavior:"smooth",block:"start"})},50)};
 }
-async function requestWake(){try{wake=await navigator.wakeLock.request("screen")}catch(e){wake=null;toast("Scherm-aan wordt hier niet ondersteund");const w=$("#wake");if(w)w.checked=false}}
-function releaseWake(){try{wake&&wake.release()}catch(e){}wake=null}
+// ---------- kookmodus: scherm aan ----------
+const NOSLEEP_MP4="data:video/mp4;base64,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";
+let nosleepVid=null;
+async function requestWake(){
+  try{if(navigator.wakeLock){wake=await navigator.wakeLock.request("screen");wake.addEventListener&&wake.addEventListener("release",()=>{wake=null});return}}catch(e){wake=null}
+  // terugval voor oudere iPhones: een onzichtbaar, stil filmpje in een lus houdt het scherm aan
+  try{if(!nosleepVid){nosleepVid=document.createElement("video");nosleepVid.setAttribute("playsinline","");nosleepVid.setAttribute("muted","");nosleepVid.muted=true;nosleepVid.loop=true;
+      nosleepVid.src=NOSLEEP_MP4;nosleepVid.style.cssText="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;bottom:0;left:0";document.body.appendChild(nosleepVid)}
+    await nosleepVid.play();
+  }catch(e){toast("Scherm aan houden lukt hier niet; zet automatisch vergrendelen even uit")}
+}
+function releaseWake(){try{wake&&wake.release()}catch(e){}wake=null;try{nosleepVid&&nosleepVid.pause()}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(cookOn&&cur&&!wake)requestWake();tickTimers()}});
+// ---------- kookmodus: timers ----------
+const TIJD_RE=/\b(?:(\d+(?:[.,]\d+)?)(?:\s*(?:-|–|—|tot|à)\s*(\d+(?:[.,]\d+)?))?\s*(minuten|minuut|min\b\.?|uur|uren|u\b|seconden|sec\b\.?)|(anderhalf uur|een half uur|half uur|een kwartier|kwartier|drie kwartier))/gi;
+function timerHTML(s,k){
+  let out="",last=0;s=String(s);
+  for(const m of s.matchAll(TIJD_RE)){
+    let sec;
+    if(m[4]){const w=m[4].toLowerCase();sec=/anderhalf/.test(w)?5400:/drie kwartier/.test(w)?2700:/kwartier/.test(w)?900:1800}
+    else{const n=parseFloat(m[1].replace(",","."));const u=m[3].toLowerCase();sec=n*(/^u/.test(u)?3600:/^s/.test(u)?1:60)}
+    if(!sec||sec>12*3600)continue;
+    out+=esc(s.slice(last,m.index))+`<button class="tbtn" data-sec="${Math.round(sec)}" data-k="${k}" aria-label="Start timer ${esc(m[0])}">⏲ ${esc(m[0])}</button>`;
+    last=m.index+m[0].length;
+  }
+  return out+esc(s.slice(last));
+}
+let timers=[],timerIv=null,audioCtx=null;
+function unlockAudio(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==="suspended")audioCtx.resume()}catch(e){}}
+function beep(){try{unlockAudio();const t0=audioCtx.currentTime;for(let i=0;i<6;i++){const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.value=i%2?880:1175;
+  g.gain.setValueAtTime(0.0001,t0+i*.35);g.gain.exponentialRampToValueAtTime(0.6,t0+i*.35+.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+i*.35+.3);o.connect(g).connect(audioCtx.destination);o.start(t0+i*.35);o.stop(t0+i*.35+.32)}}catch(e){}}
+const mmss=s=>{s=Math.max(0,Math.ceil(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
+function startTimer(sec,label){
+  unlockAudio();
+  timers.push({id:Date.now()+Math.random(),label,dur:sec,end:Date.now()+sec*1000,left:null,af:false});
+  toast("Timer gestart: "+mmss(sec));renderTimers();
+  if(!timerIv)timerIv=setInterval(tickTimers,1000);
+}
+function tickTimers(){
+  let ring=false;
+  timers.forEach(t=>{if(!t.af&&t.left==null&&Date.now()>=t.end){t.af=true;ring=true}});
+  if(ring){beep();try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400])}catch(e){}toast("⏰ Timer klaar!")}
+  // blijft piepen tot je hem wegtikt (elke 5 seconden)
+  else if(timers.some(t=>t.af)&&Math.floor(Date.now()/1000)%5===0)beep();
+  if(!timers.length){clearInterval(timerIv);timerIv=null}
+  if(ring)renderTimers();
+  else timers.forEach(t=>{const e=document.querySelector(`#timers [data-tt="${t.id}"]`);if(e&&!t.af)e.textContent=mmss(t.left!=null?t.left:(t.end-Date.now())/1000)});
+  const el=$("#timers");if(el)el.classList.toggle("indetail",$("#detail").classList.contains("open"));
+}
+function renderTimers(){
+  const el=$("#timers");if(!el)return;el.hidden=!timers.length;document.body.classList.toggle("hastimer",timers.length>0);
+  el.classList.toggle("indetail",$("#detail").classList.contains("open"));
+  el.innerHTML=timers.map(t=>{const rest=t.left!=null?t.left:(t.end-Date.now())/1000;
+    return `<div class="timer ${t.af?"af":""}"><span class="tl">${esc(t.label)}</span><span class="tt" data-tt="${t.id}">${t.af?"Klaar!":mmss(rest)}</span>
+      ${t.af?"":`<button data-tp="${t.id}" aria-label="${t.left!=null?"Verder":"Pauze"}">${t.left!=null?"▶":"⏸"}</button>`}<button data-tx="${t.id}" aria-label="Timer stoppen">✕</button></div>`}).join("");
+  $$("#timers [data-tp]").forEach(b=>b.onclick=()=>{const t=timers.find(x=>x.id==b.dataset.tp);if(!t)return;
+    if(t.left!=null){t.end=Date.now()+t.left*1000;t.left=null}else t.left=(t.end-Date.now())/1000;renderTimers()});
+  $$("#timers [data-tx]").forEach(b=>b.onclick=()=>{timers=timers.filter(x=>x.id!=b.dataset.tx);renderTimers()});
+}
 $("#lbclose").onclick=()=>history.back();
 $("#photoFile").onchange=async e=>{
   const f=e.target.files&&e.target.files[0];if(!f||!cur)return;
@@ -1395,8 +1542,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.11", APP_DATE="2026-09-22";
-const APP_LOG=["Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.12", APP_DATE="2026-09-22";
+const APP_LOG=["Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
@@ -1446,7 +1593,7 @@ function initVersion(){
 // ---------- beheer ----------
 function renderBeheer(){
   const n=RECIPES.filter(r=>noteOf(r.id)).length;
-  $("#dbinfo").textContent=`${RECIPES.length} recepten · ${favs.size} favorieten · ${n} met notities · ${photos.size} eigen foto${photos.size===1?"":"'s"}.`;
+  $("#dbinfo").textContent=`${RECIPES.length} recepten · ${favs.size} favorieten · ${n} met notities · ${photos.size} foto${photos.size===1?"":"'s"} in de database.`;
 }
 // Recepten van buiten (import) netjes maken: ingrediënten mogen ook gewone tekstregels zijn
 function normRecipe(r){
