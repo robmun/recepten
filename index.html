@@ -970,10 +970,11 @@ Regels:
 - Staat er geen recept op de foto, geef dan {"is_recept":false}.`;
 function aiUitleg(e){
   const m=String(e&&(e.message||e.code)||e||"");
-  if(/API has not been used|disabled|SERVICE_DISABLED|not enabled|ai-logic|firebasevertexai|firebaseml/i.test(m))return"Het lezen van foto's staat nog niet aan in Firebase (AI Logic › Gemini Developer API).";
-  if(/quota|429|RESOURCE_EXHAUSTED|rate/i.test(m))return"Even te veel foto's gelezen; probeer het over een minuut opnieuw.";
-  if(/network|fetch|Failed to fetch|offline/i.test(m))return"Geen internetverbinding.";
-  return"Het lezen van de foto lukte niet ("+m.slice(0,140)+").";
+  const tech=" — technisch: "+m.replace(/\s+/g," ").slice(0,260);
+  if(/SERVICE_DISABLED|has not been used in project|is disabled|API_KEY_SERVICE_BLOCKED|are blocked/i.test(m))return"Het lezen van foto's is nog niet volledig aangezet in Firebase."+tech;
+  if(/quota|429|RESOURCE_EXHAUSTED/i.test(m))return"Even te veel foto's gelezen; probeer het over een minuut opnieuw."+tech;
+  if(/Failed to fetch|network|offline/i.test(m))return"Geen internetverbinding."+tech;
+  return"Het lezen van de foto lukte niet."+tech;
 }
 async function recipeFromPhotos(files){
   const F=CLOUD.F||window.FB;
@@ -988,7 +989,7 @@ async function recipeFromPhotos(files){
       const res=await m.generateContent(parts);
       let txt=res.response.text().trim().replace(/^```(?:json)?\s*/i,"").replace(/```\s*$/,"");
       return JSON.parse(txt);
-    }catch(e){last=e;if(!/not found|404|is not supported|unsupported model/i.test(String(e&&e.message)))break}
+    }catch(e){console.error(model,e);if(!last)last=e;const m=String(e&&e.message);if(/Failed to fetch|network|quota|429|RESOURCE_EXHAUSTED/i.test(m))break}
   }
   throw last;
 }
@@ -1205,8 +1206,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.4", APP_DATE="2026-09-22";
-const APP_LOG=["Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.5", APP_DATE="2026-09-22";
+const APP_LOG=["Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};

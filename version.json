@@ -1,9 +1,9 @@
 {
-  "version": "26.9.4",
+  "version": "26.9.5",
   "datum": "2026-09-22",
   "notities": [
+    "Duidelijkere foutmelding bij het lezen van foto's",
     "Recept maken vanaf een foto (bijv. uit een kookboek)",
-    "Knop ‘Terug naar origineel recept’ na aanpassen",
-    "Bron blijft verplicht; bij een kookboekfoto wordt de naam van het boek voorgesteld"
+    "Knop ‘Terug naar origineel recept’ na aanpassen"
   ]
 }
