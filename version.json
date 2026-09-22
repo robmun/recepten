@@ -1,9 +1,9 @@
 {
-  "version": "26.9.5",
+  "version": "26.9.7",
   "datum": "2026-09-22",
   "notities": [
-    "Duidelijkere foutmelding bij het lezen van foto's",
-    "Recept maken vanaf een foto (bijv. uit een kookboek)",
-    "Knop ‘Terug naar origineel recept’ na aanpassen"
+    "Foto's lezen beveiligd met App Check (reCAPTCHA)",
+    "Recepten blijven nu altijd op je toestel bewaard (grotere opslag)",
+    "Filters tijd, sortering en bron naast elkaar"
   ]
 }
