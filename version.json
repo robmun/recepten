@@ -1,10 +1,9 @@
 {
-  "version": "26.9.3",
+  "version": "26.9.4",
   "datum": "2026-09-22",
   "notities": [
-    "Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'",
-    "Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin",
-    "Favorieten en boodschappenlijst blijven persoonlijk",
-    "Beheer: toestellen van gezinsleden bekijken en ontkoppelen"
+    "Recept maken vanaf een foto (bijv. uit een kookboek)",
+    "Knop ‘Terug naar origineel recept’ na aanpassen",
+    "Bron blijft verplicht; bij een kookboekfoto wordt de naam van het boek voorgesteld"
   ]
 }
