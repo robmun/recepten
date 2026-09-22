@@ -101,7 +101,9 @@ nav.tabs button.on{color:var(--accent); font-weight:600}
 #detail.cook .steps li{margin-bottom:.8em}
 #detail.cook .ing{font-size:1.25em}
 .tbtn{display:none; font:inherit; font-size:.9em; font-weight:700; color:var(--accent-ink); background:var(--accent); border:none; border-radius:.5em; padding:.05em .4em; margin:0 .1em; cursor:pointer; white-space:nowrap}
-#detail.cook .tbtn{display:inline}
+#detail.cook .tbtns{display:flex; flex-wrap:wrap; gap:8px; margin-top:.3em}
+#detail.cook .tbtn{display:inline-block; font-size:.6em; padding:.35em .8em; border-radius:999px}
+.tbtns{display:none}
 .cookbtn{border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:999px; padding:6px 12px; font:inherit; font-size:.85rem; font-weight:600; cursor:pointer}
 .cookbtn.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
 .timers{position:fixed; left:0; right:0; bottom:calc(62px + env(safe-area-inset-bottom)); z-index:90; display:flex; flex-direction:column; gap:6px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); pointer-events:none}
@@ -192,6 +194,68 @@ details.paste summary{cursor:pointer; font-weight:600; font-size:.9rem; padding:
 .status{font-size:.85rem; margin:8px 0 0; color:var(--muted)}
 .status.bad{color:var(--warn)}
 textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(--line); background:var(--card); padding:10px; font:inherit; font-size:.8rem}
+/* ---------- laptop / computer: groter, breder, zijbalk met grote knoppen ---------- */
+@media (min-width:1000px) and (hover:hover) and (pointer:fine){
+  html{font-size:calc(var(--fs) * 1.2)}
+  body{padding-bottom:24px; padding-left:8.5rem}
+  .wrap{max-width:1320px; padding:0 36px}
+  header.top{padding:22px 0 14px}
+  header.top h1{font-size:2rem; margin-bottom:14px}
+  .zoom{gap:8px}
+  .zoom button{min-width:3.2rem; height:3rem; border-radius:14px; font-size:1.05rem}
+  #addRecipe{min-width:3.2rem; height:3rem; font-size:1.5rem; border-radius:14px}
+  .search input{height:3.4rem; border-radius:16px; font-size:1.05rem; padding-left:18px}
+  .clearq{width:2.8rem; height:2.8rem; top:.3rem; right:.3rem}
+  .typesel{height:3.2rem; border-radius:14px; font-size:1rem}
+  .filters{gap:12px; padding-top:12px}
+  .filters select{height:3rem; font-size:.95rem; border-radius:14px; padding:0 12px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:22px; padding:22px 0}
+  .card{border-radius:18px; transition:transform .15s, box-shadow .15s}
+  .card:hover{transform:translateY(-3px); box-shadow:0 10px 26px rgba(0,0,0,.12)}
+  .card .body{padding:12px 14px 14px}
+  .card h3{font-size:1.1rem}
+  .meta{font-size:.85rem}
+  .favbtn{width:3rem; height:3rem; font-size:1.4rem; top:10px; right:10px}
+  /* navigatie als zijbalk links met grote pictogrammen */
+  nav.tabs{top:0; bottom:0; right:auto; width:8.5rem; flex-direction:column; justify-content:flex-start; gap:6px; padding:24px 10px; border-top:none; border-right:1px solid var(--line)}
+  nav.tabs button{flex:0 0 auto; padding:16px 4px; border-radius:18px; font-size:.95rem; gap:6px}
+  nav.tabs button .ic{font-size:2.4rem; line-height:1}
+  nav.tabs button:hover{background:var(--accent-soft)}
+  nav.tabs button.on{background:var(--accent-soft)}
+  .badge{top:8px; font-size:.75rem}
+  .timers:not(.indetail){left:8.5rem; bottom:0}
+  .bkbar{left:calc(8.5rem + 24px); bottom:24px}
+  /* knoppen en velden */
+  .btn{padding:14px 22px; border-radius:14px; font-size:1rem}
+  .round{width:3.3rem; height:3.3rem; font-size:1.45rem}
+  .round svg{width:26px; height:26px}
+  .chip{padding:9px 16px; font-size:.95rem}
+  .stepper button{width:2.8rem; height:2.8rem; font-size:1.35rem}
+  .cookbtn{padding:10px 18px; font-size:1rem}
+  .box{padding:22px 24px; border-radius:18px; margin:20px 0}
+  .box h4{font-size:1.2rem}
+  .hint{font-size:.85rem}
+  /* recept: grote foto binnen de pagina, ingrediënten links en bereiding rechts */
+  .detail{padding-bottom:40px}
+  .dhead{padding:14px 24px; background:var(--bg)}
+  .hero{width:calc(100% - 72px); max-width:1248px; margin:0 auto; max-height:50vh; border-radius:22px}
+  .pills .pill{margin-bottom:6px}
+  .detail h2{font-size:2.2rem; margin:22px 0 10px}
+  .pill{font-size:.9rem; padding:5px 14px}
+  .photorow .btn{font-size:1rem; padding:12px 18px}
+  #detail .wrap{display:grid; grid-template-columns:minmax(0,2fr) minmax(0,3fr); column-gap:28px; align-items:start}
+  #detail .wrap > *{grid-column:1 / -1}
+  #detail #ding{grid-column:1}
+  #detail #dsteps{grid-column:2; grid-row:span 2}
+  #detail #dnotesbox{grid-column:1}
+  .ing li{padding:10px 0}
+  .steps li{margin-bottom:18px}
+  #detail.cook .steps{font-size:1.7em}
+  /* instellingen in twee kolommen */
+  #p-beheer main.wrap{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:24px; align-items:start}
+  #p-beheer main.wrap > .box{margin:12px 0}
+  .editor .wrap, .admin .wrap{max-width:1000px}
+}
 </style>
 </head>
 <body>
@@ -984,10 +1048,10 @@ function renderDetail(){
         ${photos.has(r.id)?`<button class="btn ghost" id="dphotodel" style="flex:0 0 auto;width:auto;color:var(--warn)" aria-label="Eigen foto verwijderen">🗑</button>`:""}
         <button class="btn ghost" id="dedit" style="flex:0 0 auto;width:auto">✎ Bewerken</button></div>
       <h2>${esc(r.titel)}</h2>
-      ${r.tijd?`<span class="pill"${r.tijdGeschat?' title="Geschatte bereidingstijd"':""}>⏱ ${r.tijdGeschat?"± ":""}${esc(tijdTxt(r.tijd))}</span>`:""}<span class="pill">${esc(r.type||"")}</span>${(r.tags||[]).map(t=>`<span class="pill" style="background:var(--line);color:var(--ink)">${esc(t)}</span>`).join("")}
+      <div class="pills">${r.tijd?`<span class="pill"${r.tijdGeschat?' title="Geschatte bereidingstijd"':""}>⏱ ${r.tijdGeschat?"± ":""}${esc(tijdTxt(r.tijd))}</span>`:""}<span class="pill">${esc(r.type||"")}</span>${(r.tags||[]).map(t=>`<span class="pill" style="background:var(--line);color:var(--ink)">${esc(t)}</span>`).join("")}</div>
       ${isAangepast(r)?`<div class="photorow"><span class="pill" style="align-self:center">✎ Aangepast</span><button class="btn ghost" id="drestore" style="flex:1">↺ Terug naar origineel recept</button></div>`:""}
       ${r.bron||safeUrl(r.url)?`<p class="srcline">Bron: <b>${esc(r.bron||"onbekend")}</b>${safeUrl(r.url)?` · <a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener noreferrer">bekijk origineel ↗</a>`:""}</p>`:""}
-      <div class="box"><h4>Ingrediënten
+      <div class="box" id="ding"><h4>Ingrediënten
         <span class="stepper"><button id="pmin" aria-label="Minder porties">−</button><span>${p} ${p===1?"portie":"porties"}</span><button id="pplus" aria-label="Meer porties">+</button></span></h4>
         <ul class="ing">${ings}</ul>
         ${(r.benodigdheden||[]).length?`<p class="hint" style="margin-top:10px"><b>Benodigdheden:</b> ${esc(r.benodigdheden.join(", "))}</p>`:""}
@@ -995,9 +1059,9 @@ function renderDetail(){
       </div>
       <div class="box" id="dsteps"><h4>Bereiding <button class="cookbtn ${cookOn?"on":""}" id="dcook" aria-pressed="${cookOn}">👩‍🍳 Kookmodus${cookOn?" aan":""}</button></h4>
         <ol class="steps">${steps}</ol>
-        <p class="hint">${cookOn?"Het scherm blijft aan. Tik op een tijd om een timer te starten, en op een stap om hem af te vinken.":"Tik op een stap om hem af te vinken. Kookmodus: grotere tekst, scherm blijft aan en timers."}</p>
+        <p class="hint">${cookOn?"Het scherm blijft aan. Tik op een timerknop om hem te starten, en op een stap om hem af te vinken.":"Tik op een stap om hem af te vinken. Kookmodus: grotere tekst, scherm blijft aan en timers."}</p>
       </div>
-      <div class="box"><h4>📝 Mijn notities <span class="saved" id="nsaved">Opgeslagen ✓</span></h4>
+      <div class="box" id="dnotesbox"><h4>📝 Mijn notities <span class="saved" id="nsaved">Opgeslagen ✓</span></h4>
         <textarea class="notes" id="dnotes" placeholder="Bijv. minder zout, 5 min langer in de oven, lekker met rijst…">${esc(noteOf(r.id))}</textarea>
       </div>
     </div>`;
@@ -1042,16 +1106,18 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 // ---------- kookmodus: timers ----------
 const TIJD_RE=/\b(?:(\d+(?:[.,]\d+)?)(?:\s*(?:-|–|—|tot|à)\s*(\d+(?:[.,]\d+)?))?\s*(minuten|minuut|min\b\.?|uur|uren|u\b|seconden|sec\b\.?)|(anderhalf uur|een half uur|half uur|een kwartier|kwartier|drie kwartier))/gi;
 function timerHTML(s,k){
-  let out="",last=0;s=String(s);
+  s=String(s);const seen=new Set(),btns=[];
   for(const m of s.matchAll(TIJD_RE)){
     let sec;
     if(m[4]){const w=m[4].toLowerCase();sec=/anderhalf/.test(w)?5400:/drie kwartier/.test(w)?2700:/kwartier/.test(w)?900:1800}
     else{const n=parseFloat(m[1].replace(",","."));const u=m[3].toLowerCase();sec=n*(/^u/.test(u)?3600:/^s/.test(u)?1:60)}
     if(!sec||sec>12*3600)continue;
-    out+=esc(s.slice(last,m.index))+`<button class="tbtn" data-sec="${Math.round(sec)}" data-k="${k}" aria-label="Start timer ${esc(m[0])}">⏲ ${esc(m[0])}</button>`;
-    last=m.index+m[0].length;
+    sec=Math.round(sec);if(seen.has(sec))continue;seen.add(sec);
+    const lbl=sec<60?sec+" sec":tijdTxt(Math.round(sec/60))+(sec%60?" "+sec%60+" sec":"");
+    btns.push(`<button class="tbtn" data-sec="${sec}" data-k="${k}" aria-label="Start timer van ${esc(lbl)}">⏲ Timer ${esc(lbl)}</button>`);
   }
-  return out+esc(s.slice(last));
+  // de tekst blijft zoals hij is; de timers staan eronder
+  return esc(s)+(btns.length?`<span class="tbtns">${btns.join("")}</span>`:"");
 }
 let timers=[],timerIv=null,audioCtx=null;
 function unlockAudio(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==="suspended")audioCtx.resume()}catch(e){}}
@@ -1546,8 +1612,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.13", APP_DATE="2026-09-22";
-const APP_LOG=["Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.15", APP_DATE="2026-09-22";
+const APP_LOG=["Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
