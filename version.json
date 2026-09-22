@@ -1,8 +1,10 @@
 {
-  "version": "26.9.1",
+  "version": "26.9.2",
   "datum": "2026-09-22",
   "notities": [
-    "Versiebeheer: je ziet nu welke versie je gebruikt",
-    "Automatisch bijwerken zodra er een nieuwe versie online staat"
+    "Inloggen met naam en wachtwoord; je account werkt op één toestel",
+    "Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin",
+    "Favorieten en boodschappenlijst blijven persoonlijk",
+    "Beheer: toestellen van gezinsleden bekijken en ontkoppelen"
   ]
 }
