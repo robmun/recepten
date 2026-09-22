@@ -248,26 +248,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
      bron (tekst), url (link naar het origineel).
 -->
 <script id="recipe-data" type="application/json">
-[
- {"id":"vb-ovenomelet","titel":"Ovenomelet met spinazie en feta","type":"Ontbijt","tijd":25,"porties":2,"foto":"",
-  "ingredienten":[{"q":4,"u":"","n":"eieren"},{"q":100,"u":"g","n":"verse spinazie"},{"q":50,"u":"g","n":"feta"},{"q":6,"u":"","n":"cherrytomaatjes"},{"q":1,"u":"tl","n":"olijfolie"},{"q":null,"u":"","n":"peper en zout"}],
-  "stappen":["Verwarm de oven voor op 190 °C en vet een kleine ovenschaal in met de olijfolie.","Laat de spinazie kort slinken in een koekenpan en knijp het vocht eruit.","Klop de eieren los met peper en zout. Verdeel spinazie, gehalveerde tomaatjes en verkruimelde feta over de schaal.","Giet het ei erover en bak 15–18 minuten tot het gestold is."]},
- {"id":"vb-kip-traybake","titel":"Traybake met kip, courgette en paprika","type":"Hoofdgerecht","tijd":40,"porties":2,"foto":"",
-  "ingredienten":[{"q":250,"u":"g","n":"kipfilet"},{"q":1,"u":"","n":"courgette"},{"q":1,"u":"","n":"rode paprika"},{"q":1,"u":"","n":"rode ui"},{"q":150,"u":"g","n":"krieltjes"},{"q":1,"u":"el","n":"olijfolie"},{"q":1,"u":"tl","n":"paprikapoeder"},{"q":1,"u":"tl","n":"gedroogde oregano"}],
-  "stappen":["Verwarm de oven voor op 200 °C.","Halveer de krieltjes, snijd de groente in grove stukken en de kip in blokjes.","Meng alles op een bakplaat met olie, paprikapoeder, oregano, peper en zout.","Rooster 25–30 minuten, halverwege omscheppen."]},
- {"id":"vb-linzensoep","titel":"Rode linzensoep met wortel","type":"Lunch","tijd":30,"porties":4,"foto":"",
-  "ingredienten":[{"q":200,"u":"g","n":"rode linzen"},{"q":3,"u":"","n":"wortels"},{"q":1,"u":"","n":"ui"},{"q":2,"u":"","n":"tenen knoflook"},{"q":1,"u":"l","n":"groentebouillon"},{"q":1,"u":"tl","n":"komijn"},{"q":0.5,"u":"","n":"citroen"}],
-  "stappen":["Snipper de ui en knoflook, snijd de wortels in plakjes.","Fruit ui en knoflook met de komijn, voeg wortel en afgespoelde linzen toe.","Schenk de bouillon erbij en kook 20 minuten zachtjes.","Pureer en breng op smaak met citroensap, peper en zout."]},
- {"id":"vb-tzatziki","titel":"Frisse tzatziki","type":"Dips en Sauzen","tijd":10,"porties":4,"foto":"",
-  "ingredienten":[{"q":250,"u":"g","n":"Griekse yoghurt 0%"},{"q":0.5,"u":"","n":"komkommer"},{"q":1,"u":"","n":"teen knoflook"},{"q":1,"u":"el","n":"verse dille"},{"q":1,"u":"tl","n":"citroensap"}],
-  "stappen":["Rasp de komkommer en knijp het vocht eruit.","Meng met yoghurt, geperste knoflook, dille en citroensap.","Breng op smaak en laat 10 minuten opstijven in de koelkast."]},
- {"id":"vb-kwarkbowl","titel":"Kwarkbowl met rood fruit","type":"Tussendoortje","tijd":5,"porties":1,"foto":"",
-  "ingredienten":[{"q":150,"u":"g","n":"magere kwark"},{"q":75,"u":"g","n":"frambozen"},{"q":1,"u":"el","n":"havermout"},{"q":1,"u":"tl","n":"kaneel"}],
-  "stappen":["Schep de kwark in een kom.","Top met frambozen, havermout en kaneel."]},
- {"id":"vb-appelmuffins","titel":"Appel-havermuffins","type":"Bakgerechten","tijd":35,"porties":6,"foto":"",
-  "ingredienten":[{"q":150,"u":"g","n":"havermout"},{"q":2,"u":"","n":"eieren"},{"q":1,"u":"","n":"appel"},{"q":100,"u":"g","n":"magere kwark"},{"q":1,"u":"tl","n":"bakpoeder"},{"q":1,"u":"tl","n":"kaneel"}],
-  "stappen":["Verwarm de oven voor op 180 °C.","Maal de havermout fijn en meng met bakpoeder en kaneel.","Klop eieren en kwark door elkaar, rasp de appel erbij en meng met het droge mengsel.","Verdeel over 6 muffinvormpjes en bak 20–22 minuten."]}
-]
+[]
 </script>
 
 <script>
@@ -414,7 +395,7 @@ function renderList(){
     :state.sort==="nieuw"?(a,b)=>(b.toegevoegd||"").localeCompare(a.toegevoegd||"")||a.titel.localeCompare(b.titel,"nl")
     :(a,b)=>a.titel.localeCompare(b.titel,"nl"));
   $("#count").textContent=list.length+" recept"+(list.length===1?"":"en");
-  $("#grid").innerHTML=list.length?list.map(cardHTML).join(""):`<div class="empty" style="grid-column:1/-1">Geen recepten gevonden.</div>`;
+  $("#grid").innerHTML=list.length?list.map(cardHTML).join(""):`<div class="empty" style="grid-column:1/-1">${RECIPES.length?"Geen recepten gevonden.":"Nog geen recepten.<br>Tik op ＋ om er een toe te voegen, of importeer je receptenbestand via Instellingen."}</div>`;
   bindCards($("#grid"));
 }
 function renderFavs(){
