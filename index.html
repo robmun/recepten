@@ -115,6 +115,25 @@ nav.tabs button.on{color:var(--accent); font-weight:600}
 .toast.show{opacity:1}
 .page{display:none}
 .page.on{display:block}
+.addbtn{background:var(--accent)!important; color:var(--accent-ink); border-color:var(--accent)!important; font-size:1.2rem}
+.editor{z-index:50}
+.field{display:block; margin:0 0 12px}
+.field>span{display:block; font-size:.82rem; font-weight:600; margin:0 0 4px}
+.field input,.field select{width:100%; height:44px; border-radius:12px; border:1px solid var(--line); background:var(--card); padding:0 12px; font-size:.95rem}
+.field textarea{font-size:.92rem; min-height:140px}
+.field.req>span::after{content:" *"; color:var(--warn)}
+.field.err input{border-color:var(--warn); box-shadow:0 0 0 2px color-mix(in srgb,var(--warn) 30%,transparent)}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.urlrow{display:flex; gap:8px}
+.urlrow input{flex:1; min-width:0}
+.urlrow .btn{width:auto; white-space:nowrap}
+.minichips{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
+.fprev{width:100%; max-height:180px; object-fit:cover; border-radius:12px; display:block; margin-top:8px; background:var(--accent-soft)}
+.srcline{font-size:.85rem; color:var(--muted); margin:10px 0 0; word-break:break-word}
+.srcline a{color:var(--accent); font-weight:600}
+details.paste summary{cursor:pointer; font-weight:600; font-size:.9rem; padding:4px 0}
+.status{font-size:.85rem; margin:8px 0 0; color:var(--muted)}
+.status.bad{color:var(--warn)}
 textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(--line); background:var(--card); padding:10px; font:inherit; font-size:.8rem}
 </style>
 </head>
@@ -126,6 +145,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
     <h1><span>Recepten</span>
       <span class="zoom" aria-label="Tekstgrootte">
         <button data-z="-1" aria-label="Kleiner">A−</button><button data-z="1" aria-label="Groter">A+</button>
+        <button id="addRecipe" class="addbtn" aria-label="Recept toevoegen">＋</button>
       </span>
     </h1>
     <div class="search"><input id="q" type="search" placeholder="Zoek op gerecht of ingrediënten…" autocomplete="off" enterkeyhint="search">
@@ -143,7 +163,9 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
       <select id="sort" aria-label="Sorteren">
         <option value="az">A–Z</option>
         <option value="tijd">Snelste eerst</option>
+        <option value="nieuw">Laatst toegevoegd</option>
       </select>
+      <select id="bronsel" aria-label="Bron" hidden></select>
       <span class="count" id="count"></span>
     </div>
   </div></header>
@@ -176,6 +198,11 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
       </div>
     </div>
     <div class="box">
+      <h4>Recept toevoegen</h4>
+      <p class="hint">Plak de link van een receptpagina; de app haalt titel, foto, ingrediënten en bereiding op. Lukt dat niet (bijv. bij pagina's achter een login), plak dan de recepttekst.</p>
+      <button class="btn" id="addRecipe2" style="margin-top:8px">＋ Recept toevoegen</button>
+    </div>
+    <div class="box">
       <h4>Delen</h4>
       <p class="hint" id="shareinfo">Stuur de link naar de app door, of deel je hele receptenboek (inclusief eigen recepten, notities en foto's) als bestand. De ontvanger zet dat bestand terug via “Importeer bestand”.</p>
       <div class="row" style="margin-top:8px">
@@ -191,7 +218,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
         <input type="file" id="importFile" class="hidden-input" accept=".json,application/json">
       </div>
       <p class="hint">Of: plak hieronder een JSON-lijst met recepten en tik op Importeren. Bestaande recepten met hetzelfde id worden bijgewerkt.</p>
-      <textarea id="importtxt" placeholder='[{"id":"...","titel":"...","type":"Lunch","tijd":20,"porties":2,"foto":"","ingredienten":[{"q":100,"u":"g","n":"kipfilet"}],"stappen":["..."]}]'></textarea>
+      <textarea id="importtxt" placeholder='[{"id":"...","titel":"...","type":"Lunch","tijd":20,"porties":2,"foto":"","bron":"...","url":"https://...","ingredienten":[{"q":100,"u":"g","n":"kipfilet"}],"stappen":["..."]}]'></textarea>
       <div class="row" style="margin-top:8px">
         <button class="btn" id="doImport" style="width:auto">Importeren</button>
         <button class="btn ghost" id="doExport" style="width:auto">Exporteer mijn gegevens</button>
@@ -209,14 +236,16 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 
 <!-- DETAIL -->
 <div class="detail" id="detail" role="dialog" aria-modal="true"></div>
+<div class="detail editor" id="editor" role="dialog" aria-modal="true"></div>
+<datalist id="bronlist"></datalist>
 <div class="lb" id="lb"><button class="round" id="lbclose" aria-label="Sluiten">✕</button><img id="lbimg" alt=""></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="photoFile" class="hidden-input" accept="image/*">
 
 <!-- ============ RECEPTEN-DATA ============
      Elk recept: id, titel, type (één van de 13 types), tijd (minuten), porties,
-     foto (URL of data:image/...), ingredienten [{q: hoeveelheid of null, u: eenheid, n: naam}], stappen [tekst].
-     Eigen foto's en notities worden per apparaat bewaard (in de browser) en gaan mee met "Deel mijn receptenboek".
+     foto (URL of data:image/...), ingredienten [{q: hoeveelheid of null, u: eenheid, n: naam}], stappen [tekst],
+     bron (tekst), url (link naar het origineel).
 -->
 <script id="recipe-data" type="application/json">
 [
@@ -298,7 +327,7 @@ async function shareOrCopy({title,text,url}){
   try{await navigator.clipboard.writeText(t);toast("Gekopieerd — plak het in een bericht")}catch(e){prompt("Kopieer en deel:",t)}
 }
 let shop=store.get("shop",{recipes:[],have:[]}); // recipes:[{id,porties}], have:[key]
-let state={type:"",q:"",max:"",sort:"az",hideHave:store.get("hideHave",false)};
+let state={type:"",q:"",max:"",sort:"az",bron:"",hideHave:store.get("hideHave",false)};
 
 // ---------- zoom / thema ----------
 let fs=store.get("fs",16);
@@ -328,6 +357,8 @@ function fmt(q){
   if(d>.96)return String(w+1);
   return (Math.round(q*10)/10).toString().replace(".",",");
 }
+function safeUrl(u){u=String(u||"").trim();return /^https?:\/\//i.test(u)?u:""}
+function safeImg(u){u=String(u||"").trim();return /^(https?:\/\/|data:image\/)/i.test(u)?u:""}
 function norm(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")}
 function toast(t){const el=$("#toast");el.textContent=t;el.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove("show"),1600)}
 
@@ -340,8 +371,23 @@ function renderTypes(){
     TYPES.concat(extra).map(t=>`<option value="${esc(t)}" ${cnt[t]?"":"disabled"} ${state.type===t?"selected":""}>${esc((EMOJI[t]||"•")+" "+t)} (${cnt[t]||0})</option>`).join("");
 }
 $("#type").onchange=e=>{state.type=e.target.value;renderList()};
+const NOBRON="__geen__";
+function bronnen(){const c={};RECIPES.forEach(r=>{const b=(r.bron||"").trim();if(b)c[b]=(c[b]||0)+1});return c}
+function renderBronnen(){
+  const c=bronnen(), names=Object.keys(c).sort((a,b)=>a.localeCompare(b,"nl"));
+  const none=RECIPES.filter(r=>!(r.bron||"").trim()).length;
+  const sel=$("#bronsel");
+  if(state.bron&&state.bron!==NOBRON&&!c[state.bron])state.bron="";
+  sel.hidden=!names.length;
+  sel.innerHTML=`<option value="">Alle bronnen</option>`+names.map(b=>`<option value="${esc(b)}" ${state.bron===b?"selected":""}>${esc(b)} (${c[b]})</option>`).join("")+
+    (none&&names.length?`<option value="${NOBRON}" ${state.bron===NOBRON?"selected":""}>Zonder bron (${none})</option>`:"");
+  const sugg=[...new Set(names.concat(["NewFysic public","gezond"]))];
+  $("#bronlist").innerHTML=sugg.map(b=>`<option value="${esc(b)}">`).join("");
+}
+$("#bronsel").onchange=e=>{state.bron=e.target.value;renderList()};
 function matches(r){
   if(state.type&&r.type!==state.type)return false;
+  if(state.bron){const b=(r.bron||"").trim();if(state.bron===NOBRON?b:b!==state.bron)return false}
   if(state.max&&r.tijd&&r.tijd>+state.max)return false;
   const terms=norm(state.q).split(",").map(s=>s.trim()).filter(Boolean);
   if(!terms.length)return true;
@@ -351,7 +397,7 @@ function matches(r){
 function cardHTML(r){
   return `<div class="card">
     <button style="all:unset;cursor:pointer;display:block" data-open="${esc(r.id)}">
-      <img class="img" loading="lazy" src="${esc(img(r))}" alt="">
+      <img class="img" loading="lazy" src="${esc(img(r))}" data-ph="${esc(placeholder(r))}" onerror="this.onerror=null;this.src=this.dataset.ph" alt="">
       <div class="body"><h3>${esc(r.titel)}</h3>
       <div class="meta"><span>⏱ ${esc(tijdTxt(r.tijd))}</span><span>${esc(r.type||"")}</span>${notes[r.id]?`<span title="Heeft notities">📝</span>`:""}</div></div>
     </button>
@@ -364,7 +410,9 @@ function bindCards(root){
 }
 function renderList(){
   let list=RECIPES.filter(matches);
-  list.sort(state.sort==="tijd"?(a,b)=>(a.tijd||999)-(b.tijd||999):(a,b)=>a.titel.localeCompare(b.titel,"nl"));
+  list.sort(state.sort==="tijd"?(a,b)=>(a.tijd||999)-(b.tijd||999)
+    :state.sort==="nieuw"?(a,b)=>(b.toegevoegd||"").localeCompare(a.toegevoegd||"")||a.titel.localeCompare(b.titel,"nl")
+    :(a,b)=>a.titel.localeCompare(b.titel,"nl"));
   $("#count").textContent=list.length+" recept"+(list.length===1?"":"en");
   $("#grid").innerHTML=list.length?list.map(cardHTML).join(""):`<div class="empty" style="grid-column:1/-1">Geen recepten gevonden.</div>`;
   bindCards($("#grid"));
@@ -394,7 +442,10 @@ function openDetail(id){
   history.pushState({d:1},"");
 }
 function closeDetail(){$("#detail").classList.remove("open");document.body.style.overflow="";cur=null;releaseWake()}
-window.addEventListener("popstate",()=>{if($("#lb").classList.contains("open"))$("#lb").classList.remove("open");else if(cur)closeDetail()});
+window.addEventListener("popstate",()=>{
+  if($("#lb").classList.contains("open"))$("#lb").classList.remove("open");
+  else if($("#editor").classList.contains("open"))closeEditor();
+  else if(cur)closeDetail()});
 function renderDetail(){
   const {r,p}=cur, f=p/(r.porties||1);
   const ings=(r.ingredienten||[]).map(i=>`<li><span class="q">${esc(i.q==null?"":fmt(i.q*f)+(i.u?" "+i.u:""))}</span><span>${esc(i.n)}</span></li>`).join("");
@@ -403,12 +454,14 @@ function renderDetail(){
     <div class="dhead"><button class="round" id="dback" aria-label="Terug">←</button>
       <span style="display:flex;gap:8px"><button class="round" id="dshare" aria-label="Deel recept">↗</button>
       <button class="round ${favs.has(r.id)?"on":""}" id="dfav" aria-label="Favoriet">${favs.has(r.id)?"★":"☆"}</button></span></div>
-    <img class="hero" id="dimg" src="${esc(img(r))}" alt="">
+    <img class="hero" id="dimg" src="${esc(img(r))}" data-ph="${esc(placeholder(r))}" onerror="this.onerror=null;this.src=this.dataset.ph" alt="">
     <div class="wrap">
-      <div class="photorow"><button class="btn ghost" id="dphoto">📷 ${photos.has(r.id)?"Andere foto":"Eigen foto toevoegen"}</button>
-        ${photos.has(r.id)?`<button class="btn ghost" id="dphotodel" style="flex:0 0 auto;color:var(--warn)" aria-label="Eigen foto verwijderen">🗑</button>`:""}</div>
+      <div class="photorow"><button class="btn ghost" id="dphoto">📷 ${photos.has(r.id)?"Andere foto":"Eigen foto"}</button>
+        ${photos.has(r.id)?`<button class="btn ghost" id="dphotodel" style="flex:0 0 auto;width:auto;color:var(--warn)" aria-label="Eigen foto verwijderen">🗑</button>`:""}
+        <button class="btn ghost" id="dedit" style="flex:0 0 auto;width:auto">✎ Bewerken</button></div>
       <h2>${esc(r.titel)}</h2>
       <span class="pill">⏱ ${esc(tijdTxt(r.tijd))}</span><span class="pill">${esc(r.type||"")}</span>
+      ${r.bron||safeUrl(r.url)?`<p class="srcline">Bron: <b>${esc(r.bron||"onbekend")}</b>${safeUrl(r.url)?` · <a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener noreferrer">bekijk origineel ↗</a>`:""}</p>`:""}
       <div class="box"><h4>Ingrediënten
         <span class="stepper"><button id="pmin" aria-label="Minder porties">−</button><span>${p} ${p===1?"portie":"porties"}</span><button id="pplus" aria-label="Meer porties">+</button></span></h4>
         <ul class="ing">${ings}</ul>
@@ -436,6 +489,7 @@ function renderDetail(){
   $("#pmin").onclick=()=>{if(cur.p>1){cur.p--;renderDetail()}};
   $("#pplus").onclick=()=>{cur.p++;renderDetail()};
   $("#toShop").onclick=()=>addToShop(r.id,cur.p);
+  $("#dedit").onclick=()=>openEditor(r);
   $("#dimg").onclick=()=>{$("#lbimg").src=img(r);$("#lb").classList.add("open");history.pushState({lb:1},"")};
   $$("#detail [data-step]").forEach(li=>li.onclick=()=>{const k=+li.dataset.step;cur.done.has(k)?cur.done.delete(k):cur.done.add(k);li.classList.toggle("done")});
   $("#wake").onchange=e=>e.target.checked?requestWake():releaseWake();
@@ -453,9 +507,264 @@ function recipeText(r,p){
   const ing=(r.ingredienten||[]).map(i=>"• "+(i.q==null?"":fmt(i.q*f)+(i.u?" "+i.u:"")+" ")+i.n).join("\n");
   const st=(r.stappen||[]).map((s,k)=>(k+1)+". "+s).join("\n");
   return `${r.titel}\n⏱ ${tijdTxt(r.tijd)} · ${p} ${p===1?"portie":"porties"}\n\nIngrediënten\n${ing}\n\nBereiding\n${st}`+
-    (notes[r.id]?`\n\nNotities\n${notes[r.id].trim()}`:"");
+    (notes[r.id]?`\n\nNotities\n${notes[r.id].trim()}`:"")+
+    (r.bron||r.url?`\n\nBron: ${[r.bron,safeUrl(r.url)].filter(Boolean).join(" – ")}`:"");
 }
 function shareRecipe(r,p){shareOrCopy({title:r.titel,text:recipeText(r,p)})}
+
+// ---------- recept ophalen van een website ----------
+// Browsers mogen andere sites niet zomaar uitlezen; lukt het direct niet, dan gaat het via een publieke doorgeefdienst.
+const FETCHERS=[
+  u=>u,
+  u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
+  u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
+  u=>"https://api.codetabs.com/v1/proxy?quest="+encodeURIComponent(u)
+];
+async function fetchHTML(url){
+  let last;
+  for(const f of FETCHERS){
+    try{
+      const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),15000);
+      const res=await fetch(f(url),{signal:ctl.signal,credentials:"omit"});clearTimeout(t);
+      if(!res.ok)throw new Error("HTTP "+res.status);
+      const txt=await res.text();if(txt&&txt.length>300)return txt;
+    }catch(e){last=e}
+  }
+  throw last||new Error("niet bereikbaar");
+}
+const inert=s=>new DOMParser().parseFromString(String(s||""),"text/html"); // voert niets uit, laadt niets
+const plain=s=>inert(s).body.textContent.replace(/\s+/g," ").trim();
+function isoMin(d){
+  if(d==null||d==="")return null;if(typeof d==="number")return d;
+  const m=String(d).match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?/i);
+  if(m&&(m[1]||m[2]||m[3]))return (+(m[1]||0))*1440+(+(m[2]||0))*60+(+(m[3]||0));
+  const n=parseInt(d);return isNaN(n)?null:n;
+}
+function findRecipe(x){
+  if(!x||typeof x!=="object")return null;
+  if(Array.isArray(x)){for(const i of x){const r=findRecipe(i);if(r)return r}return null}
+  const t=[].concat(x["@type"]||[]).map(String);
+  if(t.some(v=>/recipe$/i.test(v)))return x;
+  return findRecipe(x["@graph"])||findRecipe(x.mainEntity)||findRecipe(x.mainEntityOfPage)||null;
+}
+function flatSteps(x){
+  if(!x)return[];
+  if(typeof x==="string")return x.split(/\n+/).map(plain).filter(Boolean);
+  if(Array.isArray(x))return x.flatMap(flatSteps);
+  if(typeof x==="object"){
+    if(x.itemListElement)return flatSteps(x.itemListElement);
+    return flatSteps(x.text||x.name||"");
+  }
+  return[];
+}
+const firstImg=x=>!x?"":typeof x==="string"?x:Array.isArray(x)?firstImg(x[0]):(x.url||x.contentUrl||"");
+const TYPE_KEYS=[["Ontbijt",/ontbijt|breakfast|brunch/],["Lunch",/lunch|soep|soup|salade|sandwich|wrap/],["Voorgerecht",/voorgerecht|starter|appetizer/],
+  ["Nagerecht",/nagerecht|dessert|toetje|ijs\b|mousse/],["Bijgerecht",/bijgerecht|side/],["Dips en Sauzen",/saus|dip|dressing|pesto|sauce/],
+  ["Drankjes",/drank|drink|smoothie|shake|cocktail/],["Tussendoortje",/tussendoor/],["Snack",/snack/],["Hapjes",/hapje|borrel|amuse|tapas/],
+  ["Bakgerechten",/bakken|gebak|taart|cake|muffin|brood|koek|baking/],["Feestdagen",/kerst|pasen|feest/],["Hoofdgerecht",/hoofdgerecht|diner|avondeten|main|dinner/]];
+function guessType(...txt){
+  for(const s of txt){const t=norm(s);if(!t)continue;for(const [k,re] of TYPE_KEYS)if(re.test(t))return k}
+  return "";
+}
+const UNIT_MAP={gram:"g",gr:"g",grams:"g",eetlepel:"el",eetlepels:"el",tbsp:"el",theelepel:"tl",theelepels:"tl",tsp:"tl",liter:"l",milliliter:"ml",stuks:"stuk",plakjes:"plakje",teentjes:"teentje",kopjes:"kopje"};
+const UNIT_RE="kg|mg|ml|cl|dl|gram|grams|gr|g|liter|milliliter|l|eetlepels?|theelepels?|el|tl|tbsp|tsp|snufje|snuf|mespunt|teentjes?|tenen|teen|blikjes?|blik|pakjes?|pak|zakjes?|stuks?|plakjes?|plakken|kopjes?|cups?|handjes?|takjes?|bosjes?|bos|scheutje|scheut";
+const FRAC={"½":.5,"¼":.25,"¾":.75,"⅓":1/3,"⅔":2/3,"⅛":.125};
+function parseIng(line){
+  line=String(line||"").replace(/^[\s\-–•*·▢□☐]+/,"").replace(/\s+/g," ").trim();
+  if(!line)return null;
+  line=line.replace(/^(\d+)\s+(\d+)\/(\d+)(?=\s|$)/,(m,a,x,y)=>String(+a+x/y))
+           .replace(/^(\d+)\/(\d+)(?=\s|$)/,(m,x,y)=>String(x/y));
+  const re=new RegExp("^(\\d+(?:[.,]\\d+)?)?\\s*([½¼¾⅓⅔⅛]|\\d+\\/\\d+)?(?:\\s*(?:-|–|tot)\\s*\\d+(?:[.,]\\d+)?)?\\s*(?:("+UNIT_RE+")\\.?(?=\\s|$))?\\s*(.*)$","i");
+  const m=line.match(re);
+  if(!m||(!m[1]&&!m[2]))return {q:null,u:"",n:line};
+  let q=m[1]?parseFloat(m[1].replace(",",".")):0;
+  if(m[2])q+=FRAC[m[2]]!=null?FRAC[m[2]]:(()=>{const [a,b]=m[2].split("/");return +a/+b})();
+  let u=(m[3]||"").toLowerCase();u=UNIT_MAP[u]||u;
+  const n=(m[4]||"").replace(/^(van\s+de|van)\s+/i,"").trim();
+  if(!n)return {q:null,u:"",n:line};
+  return {q:Math.round(q*1000)/1000,u,n};
+}
+const ingLine=i=>(i.q==null?"":fmt(i.q)+(i.u?" "+i.u:"")+" ")+i.n;
+function parseHTML(html,url){
+  const doc=inert(html);let rec=null;
+  for(const s of doc.querySelectorAll('script[type="application/ld+json"]')){
+    try{rec=findRecipe(JSON.parse(s.textContent.trim()));if(rec)break}catch(e){}
+  }
+  const meta=n=>{const el=doc.querySelector(`meta[property="${n}"],meta[name="${n}"]`);return el?el.getAttribute("content")||"":""};
+  const out={url,titel:"",foto:"",tijd:null,porties:null,type:"",ingredienten:[],stappen:[]};
+  if(rec){
+    out.titel=plain(rec.name);
+    out.foto=firstImg(rec.image);
+    out.tijd=isoMin(rec.totalTime)||((isoMin(rec.prepTime)||0)+(isoMin(rec.cookTime)||0))||null;
+    const y=[].concat(rec.recipeYield||[]).map(String).join(" ").match(/\d+/);out.porties=y?+y[0]:null;
+    out.ingredienten=[].concat(rec.recipeIngredient||rec.ingredients||[]).map(s=>parseIng(plain(s))).filter(Boolean);
+    out.stappen=flatSteps(rec.recipeInstructions);
+    out.type=guessType([].concat(rec.recipeCategory||[]).join(" "),[].concat(rec.keywords||[]).join(" "),out.titel);
+  }
+  // aanvullen met gewone pagina-informatie
+  if(!out.titel)out.titel=plain(meta("og:title")||doc.title||"").replace(/\s*[|–-]\s*[^|–-]+$/,"");
+  if(!out.foto)out.foto=meta("og:image")||meta("twitter:image");
+  if(out.foto&&url){try{out.foto=new URL(out.foto,url).href}catch(e){}}
+  if(!out.ingredienten.length){
+    const els=doc.querySelectorAll('[itemprop="recipeIngredient"],[itemprop="ingredients"],[class*="ingredient"] li');
+    out.ingredienten=[...els].map(e=>parseIng(e.textContent)).filter(Boolean);
+  }
+  if(!out.stappen.length){
+    const els=doc.querySelectorAll('[itemprop="recipeInstructions"] li,[class*="instruction"] li,[class*="preparation"] li,[class*="bereiding"] li,[class*="step"] li');
+    out.stappen=[...els].map(e=>plain(e.textContent)).filter(Boolean);
+  }
+  if(!out.type)out.type=guessType(out.titel);
+  return out;
+}
+// Losse recepttekst (gekopieerd van een pagina) omzetten
+function parseText(text){
+  const lines=String(text||"").split(/\r?\n/).map(s=>s.replace(/\s+/g," ").trim()).filter(Boolean);
+  const out={titel:"",tijd:null,porties:null,type:"",ingredienten:[],stappen:[]};
+  if(!lines.length)return out;
+  const isIngH=s=>/^ingredi[eë]nt(en)?\b/i.test(s)&&s.length<40;
+  const isStepH=s=>/^(bereiding(swijze)?|werkwijze|instructies|stappen|zo maak je (het|dit)|aan de slag|recept|method|instructions|directions)\b/i.test(s)&&s.length<40;
+  let mode="", iI=lines.findIndex(isIngH);
+  out.titel=(iI>0?lines.slice(0,iI):lines).find(s=>!/^\d/.test(s)&&s.length<120)||lines[0];
+  lines.forEach(s=>{
+    const p=s.match(/(\d+)\s*(personen|persoon|porties?|pers\.?|servings?)/i);if(p&&!out.porties)out.porties=+p[1];
+    const t=s.match(/(?:(\d+)\s*(?:uur|u)\b\s*(?:en\s*)?)?(\d+)\s*(?:min|minuten)\b/i);if(t&&!out.tijd)out.tijd=(+(t[1]||0))*60+(+t[2]);
+  });
+  for(const s of lines){
+    if(isIngH(s)){mode="i";continue}
+    if(isStepH(s)){mode="s";continue}
+    if(mode==="i")out.ingredienten.push(parseIng(s));
+    else if(mode==="s")out.stappen.push(s.replace(/^(stap\s*)?\d+[.):]?\s*/i,""));
+  }
+  out.ingredienten=out.ingredienten.filter(Boolean);
+  out.type=guessType(out.titel);
+  return out;
+}
+window.__rb={parseHTML,parseText,parseIng}; // (handig voor testen)
+
+// ---------- editor: recept toevoegen / bewerken ----------
+let ed=null; // {id, isNew}
+function openEditor(r){
+  const isNew=!r;
+  r=r||{id:"",titel:"",type:"",tijd:"",porties:2,foto:"",ingredienten:[],stappen:[],bron:"",url:""};
+  ed={id:r.id,isNew,orig:r};
+  const typeOpts=[""].concat(TYPES).map(t=>`<option value="${esc(t)}" ${r.type===t?"selected":""}>${t?esc((EMOJI[t]||"")+" "+t):"— kies een type —"}</option>`).join("");
+  const bronChips=Object.keys(bronnen()).concat(["NewFysic public","gezond"]).filter((b,i,a)=>a.indexOf(b)===i);
+  const isExtra=store.get("extra",[]).some(x=>x.id===r.id), isBase=base.some(x=>x.id===r.id);
+  $("#editor").innerHTML=`
+    <div class="dhead" style="background:var(--bg)"><button class="round" id="eback" aria-label="Annuleren">✕</button>
+      <b style="align-self:center">${isNew?"Recept toevoegen":"Recept bewerken"}</b><span style="width:42px"></span></div>
+    <div class="wrap">
+      <div class="box">
+        <label class="field"><span>Link naar het recept</span>
+          <div class="urlrow"><input id="e_url" type="url" inputmode="url" placeholder="https://…" value="${esc(r.url||"")}">
+          <button class="btn" id="e_fetch">Ophalen</button></div></label>
+        <p class="status" id="e_status"></p>
+        <details class="paste" id="e_pastebox"><summary>Of plak de recepttekst</summary>
+          <p class="hint">Handig voor pagina's achter een login: selecteer op de receptpagina alles van titel t/m bereiding, kopieer en plak het hier.</p>
+          <textarea id="e_paste" placeholder="Titel&#10;2 personen · 30 min&#10;Ingrediënten&#10;200 g kipfilet&#10;…&#10;Bereiding&#10;1. …"></textarea>
+          <button class="btn ghost" id="e_parse" style="margin-top:8px">Verwerk tekst</button>
+        </details>
+      </div>
+      <div class="box">
+        <label class="field req" id="f_bron"><span>Bron</span>
+          <input id="e_bron" list="bronlist" placeholder="Waar komt dit recept vandaan?" value="${esc(r.bron||"")}" autocomplete="off">
+          <div class="minichips">${bronChips.map(b=>`<button type="button" class="chip" data-bron="${esc(b)}">${esc(b)}</button>`).join("")}</div></label>
+        <label class="field req" id="f_titel"><span>Titel</span><input id="e_titel" value="${esc(r.titel||"")}"></label>
+        <label class="field"><span>Type gerecht</span><select id="e_type">${typeOpts}</select></label>
+        <div class="two">
+          <label class="field"><span>Tijd (minuten)</span><input id="e_tijd" type="number" inputmode="numeric" min="0" value="${esc(r.tijd||"")}"></label>
+          <label class="field"><span>Porties</span><input id="e_porties" type="number" inputmode="numeric" min="1" value="${esc(r.porties||2)}"></label>
+        </div>
+        <label class="field"><span>Foto (link)</span><input id="e_foto" type="url" placeholder="https://… (of voeg later een eigen foto toe)" value="${esc(String(r.foto||"").startsWith("data:")?"":r.foto||"")}">
+          <img class="fprev" id="e_fprev" alt="" ${safeImg(r.foto)?`src="${esc(safeImg(r.foto))}"`:"hidden"}></label>
+        <label class="field"><span>Ingrediënten — één per regel</span>
+          <textarea id="e_ing" placeholder="200 g kipfilet&#10;1 el olijfolie&#10;peper en zout">${esc((r.ingredienten||[]).map(ingLine).join("\n"))}</textarea></label>
+        <label class="field"><span>Bereiding — één stap per regel</span>
+          <textarea id="e_steps">${esc((r.stappen||[]).join("\n"))}</textarea></label>
+        <button class="btn" id="e_save">Opslaan</button>
+        ${!isNew&&isExtra&&!isBase?`<button class="btn ghost" id="e_del" style="margin-top:10px;color:var(--warn)">Recept verwijderen</button>`:""}
+        ${!isNew&&isExtra&&isBase?`<button class="btn ghost" id="e_reset" style="margin-top:10px">Originele versie terugzetten</button>`:""}
+      </div>
+    </div>`;
+  $("#editor").classList.add("open");$("#editor").scrollTop=0;document.body.style.overflow="hidden";
+  history.pushState({ed:1},"");
+  const setStatus=(t,bad)=>{const s=$("#e_status");s.textContent=t;s.classList.toggle("bad",!!bad)};
+  const fill=(d,overwrite)=>{
+    const set=(id,v)=>{if(v==null||v==="")return;const el=$(id);if(overwrite||!el.value)el.value=v};
+    set("#e_titel",d.titel);set("#e_tijd",d.tijd);set("#e_porties",d.porties);
+    if(d.type&&(overwrite||!$("#e_type").value))$("#e_type").value=d.type;
+    if(d.foto&&safeImg(d.foto)){set("#e_foto",d.foto);updPrev()}
+    if(d.ingredienten&&d.ingredienten.length)set("#e_ing",d.ingredienten.map(ingLine).join("\n"));
+    if(d.stappen&&d.stappen.length)set("#e_steps",d.stappen.join("\n"));
+    if(d.url)set("#e_url",d.url);
+  };
+  const updPrev=()=>{const u=safeImg($("#e_foto").value);const p=$("#e_fprev");if(u){p.src=u;p.hidden=false}else p.hidden=true};
+  $("#e_foto").oninput=updPrev;
+  $("#e_fprev").onerror=()=>{$("#e_fprev").hidden=true};
+  $("#eback").onclick=()=>history.back();
+  $$("#editor [data-bron]").forEach(b=>b.onclick=()=>{$("#e_bron").value=b.dataset.bron;$("#f_bron").classList.remove("err")});
+  $("#e_bron").oninput=()=>$("#f_bron").classList.remove("err");
+  $("#e_fetch").onclick=async()=>{
+    let u=$("#e_url").value.trim();if(!u){setStatus("Plak eerst een link.",true);return}
+    if(!/^https?:\/\//i.test(u))u="https://"+u;$("#e_url").value=u;
+    const btn=$("#e_fetch");btn.disabled=true;btn.textContent="Bezig…";setStatus("Recept ophalen…");
+    try{
+      const d=parseHTML(await fetchHTML(u),u);
+      fill(d,true);
+      const miss=[!d.ingredienten.length&&"ingrediënten",!d.stappen.length&&"bereiding"].filter(Boolean);
+      if(miss.length){setStatus(`Titel${d.foto?" en foto":""} gevonden, maar geen ${miss.join(" en ")} — misschien staat het recept achter een login. Plak dan de recepttekst hieronder.`,true);$("#e_pastebox").open=true}
+      else setStatus(`Gevonden: ${d.ingredienten.length} ingrediënten en ${d.stappen.length} stappen. Controleer het even en vul de bron in.`);
+      if(!$("#e_bron").value){$("#f_bron").classList.add("err");$("#e_bron").focus()}
+    }catch(e){setStatus("Deze pagina kon niet worden opgehaald. Kopieer de recepttekst van de pagina en plak die hieronder.",true);$("#e_pastebox").open=true}
+    btn.disabled=false;btn.textContent="Ophalen";
+  };
+  $("#e_url").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();$("#e_fetch").click()}};
+  $("#e_parse").onclick=()=>{
+    const d=parseText($("#e_paste").value);
+    if(!d.ingredienten.length&&!d.stappen.length){setStatus("Ik herken geen kopjes “Ingrediënten” en “Bereiding” in de tekst. Vul de velden dan zelf in.",true);if(d.titel)fill(d,false);return}
+    fill(d,true);setStatus(`Verwerkt: ${d.ingredienten.length} ingrediënten en ${d.stappen.length} stappen.`);
+    if(!$("#e_bron").value){$("#f_bron").classList.add("err")}
+  };
+  $("#e_save").onclick=()=>{
+    const bron=$("#e_bron").value.trim(), titel=$("#e_titel").value.trim();
+    if(!bron){$("#f_bron").classList.add("err");$("#e_bron").focus();toast("Vul nog een bron in");return}
+    if(!titel){$("#f_titel").classList.add("err");$("#e_titel").focus();toast("Vul een titel in");return}
+    const id=ed.id||("eigen-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
+    const rec={...ed.orig,id,titel,bron,url:safeUrl($("#e_url").value),
+      type:$("#e_type").value||"Hoofdgerecht",
+      tijd:parseInt($("#e_tijd").value)||null,
+      porties:Math.max(1,parseInt($("#e_porties").value)||1),
+      foto:safeImg($("#e_foto").value)||(String(ed.orig.foto||"").startsWith("data:")?ed.orig.foto:""),
+      ingredienten:$("#e_ing").value.split("\n").map(parseIng).filter(Boolean),
+      stappen:$("#e_steps").value.split("\n").map(s=>s.replace(/^(stap\s*)?\d+[.):]\s*/i,"").trim()).filter(Boolean),
+      toegevoegd:ed.orig.toegevoegd||new Date().toISOString()};
+    saveExtra(rec);
+    const wasNew=ed.isNew;
+    history.back(); // sluit editor
+    setTimeout(()=>{
+      if(wasNew){toast("Recept toegevoegd");openDetail(id)}
+      else{toast("Opgeslagen");if(cur&&cur.r.id===id){cur.r=byId(id);renderDetail()}}
+    },60);
+  };
+  if($("#e_del"))$("#e_del").onclick=()=>{
+    if(!confirm("Dit recept verwijderen?"))return;
+    removeExtra(ed.id);history.back();setTimeout(()=>{if(cur)history.back()},60);toast("Recept verwijderd");
+  };
+  if($("#e_reset"))$("#e_reset").onclick=()=>{
+    if(!confirm("Jouw wijzigingen aan dit recept weggooien?"))return;
+    const id=ed.id;removeExtra(id);history.back();
+    setTimeout(()=>{if(cur&&cur.r.id===id){cur.r=byId(id);renderDetail()}},60);
+  };
+  if(isNew)setTimeout(()=>$("#e_url").focus(),50);
+}
+function closeEditor(){$("#editor").classList.remove("open");$("#editor").innerHTML="";ed=null;if(!cur)document.body.style.overflow=""}
+function refreshAll(){RECIPES=allRecipes();renderTypes();renderBronnen();renderList();renderFavs();updateBadge()}
+function saveExtra(rec){
+  const extra=store.get("extra",[]).filter(x=>x.id!==rec.id);extra.push(rec);store.set("extra",extra);refreshAll();
+}
+function removeExtra(id){store.set("extra",store.get("extra",[]).filter(x=>x.id!==id));refreshAll()}
+$("#addRecipe").onclick=()=>openEditor(null);
+$("#addRecipe2").onclick=()=>openEditor(null);
 
 // ---------- boodschappen ----------
 function saveShop(){store.set("shop",shop);updateBadge()}
@@ -524,8 +833,7 @@ function importData(obj){
   }
   recs=recs.filter(r=>r&&r.id&&r.titel);
   const extra=new Map(store.get("extra",[]).map(r=>[r.id,r]));recs.forEach(r=>extra.set(r.id,r));
-  store.set("extra",[...extra.values()]);RECIPES=allRecipes();
-  renderTypes();renderList();renderFavs();renderBeheer();
+  store.set("extra",[...extra.values()]);refreshAll();renderBeheer();
   toast(`${recs.length} recept(en) geïmporteerd`+(nNotes?` · ${nNotes} notities`:"")+(nPhotos?` · ${nPhotos} foto's`:""));
 }
 $("#doImport").onclick=()=>{
@@ -567,7 +875,7 @@ $$("nav.tabs button").forEach(b=>b.onclick=()=>{
   window.scrollTo(0,0);
 });
 
-renderTypes();renderList();updateBadge();
+renderTypes();renderBronnen();renderList();updateBadge();
 pdb.loadAll().then(()=>{if(photos.size){renderList();renderFavs();if(cur)renderDetail()}});
 })();
 </script>
