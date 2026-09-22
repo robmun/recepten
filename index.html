@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f5d50">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Mijn Receptenboek</title>
+<style>
+:root{
+  --bg:#f7f4ee; --card:#ffffff; --ink:#1f2622; --muted:#6b736e; --line:#e6e1d8;
+  --accent:#2f5d50; --accent-ink:#ffffff; --accent-soft:#e3eee9; --warn:#b4532a; --fav:#d4a017;
+  --fs:16px; --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141816; --card:#1e2421; --ink:#eef1ee; --muted:#9aa39e; --line:#2e3632;
+    --accent:#7cc4ad; --accent-ink:#0f1a16; --accent-soft:#23332d; --warn:#f08a5d; --fav:#f2c94c;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141816; --card:#1e2421; --ink:#eef1ee; --muted:#9aa39e; --line:#2e3632;
+  --accent:#7cc4ad; --accent-ink:#0f1a16; --accent-soft:#23332d; --warn:#f08a5d; --fav:#f2c94c;
+}
+*{box-sizing:border-box}
+html{font-size:var(--fs); -webkit-text-size-adjust:100%}
+body{margin:0; background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.45;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom));}
+button{font:inherit; color:inherit; cursor:pointer}
+input,select{font:inherit; color:inherit}
+.wrap{max-width:760px; margin:0 auto; padding:0 16px}
+header.top{position:sticky; top:0; z-index:20; background:var(--bg); padding:12px 0 8px; border-bottom:1px solid var(--line)}
+header.top h1{font-size:1.35rem; margin:0 0 8px; display:flex; align-items:center; justify-content:space-between; gap:8px}
+.zoom{display:flex; gap:4px}
+.zoom button{border:1px solid var(--line); background:var(--card); border-radius:10px; min-width:40px; height:36px; font-weight:600}
+.search{display:flex; gap:8px}
+.search input{flex:1; min-width:0; height:44px; border-radius:12px; border:1px solid var(--line); background:var(--card); padding:0 12px}
+.hint{font-size:.78rem; color:var(--muted); margin:6px 2px 0}
+.chips{display:flex; gap:6px; overflow-x:auto; padding:10px 0 4px; scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto; border:1px solid var(--line); background:var(--card); border-radius:999px; padding:6px 12px; font-size:.85rem; white-space:nowrap}
+.chip.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+.row{display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:4px 0 2px}
+.row select{height:36px; border-radius:10px; border:1px solid var(--line); background:var(--card); padding:0 8px; font-size:.85rem}
+.count{font-size:.8rem; color:var(--muted); margin-left:auto}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; padding:14px 0}
+.card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; text-align:left; padding:0; position:relative; display:flex; flex-direction:column}
+.card .img{aspect-ratio:4/3; width:100%; object-fit:cover; display:block; background:var(--accent-soft)}
+.card .body{padding:8px 10px 10px}
+.card h3{font-size:.92rem; margin:0 0 4px; line-height:1.25}
+.meta{font-size:.76rem; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap}
+.favbtn{position:absolute; top:6px; right:6px; width:36px; height:36px; border-radius:50%; border:none; background:rgba(0,0,0,.45); color:#fff; font-size:1.1rem; display:grid; place-items:center}
+.favbtn.on{color:var(--fav)}
+.empty{text-align:center; color:var(--muted); padding:40px 10px}
+nav.tabs{position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line); display:flex; z-index:30; padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{flex:1; border:none; background:none; padding:8px 0 10px; font-size:.72rem; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:2px; position:relative}
+nav.tabs button .ic{font-size:1.25rem}
+nav.tabs button.on{color:var(--accent); font-weight:600}
+.badge{position:absolute; top:4px; left:calc(50% + 6px); background:var(--warn); color:#fff; border-radius:999px; font-size:.65rem; padding:1px 6px}
+/* detail */
+.detail{position:fixed; inset:0; background:var(--bg); z-index:40; overflow-y:auto; display:none; padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+.detail.open{display:block}
+.dhead{position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; padding:10px 16px; background:linear-gradient(var(--bg),transparent)}
+.round{width:42px; height:42px; border-radius:50%; border:1px solid var(--line); background:var(--card); font-size:1.15rem; display:grid; place-items:center}
+.round.on{color:var(--fav)}
+.hero{width:100%; max-height:48vh; object-fit:cover; display:block; margin-top:-62px; background:var(--accent-soft); cursor:zoom-in}
+.detail h2{font-size:1.45rem; margin:14px 0 6px; line-height:1.2}
+.pill{display:inline-block; background:var(--accent-soft); color:var(--accent); border-radius:999px; padding:3px 10px; font-size:.78rem; font-weight:600; margin-right:6px}
+.box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin:14px 0}
+.box h4{margin:0 0 10px; font-size:1.05rem; display:flex; justify-content:space-between; align-items:center; gap:8px}
+.stepper{display:flex; align-items:center; gap:6px; font-size:.9rem; font-weight:500}
+.stepper button{width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--bg); font-size:1.1rem}
+.ing{list-style:none; margin:0; padding:0}
+.ing li{padding:7px 0; border-bottom:1px dashed var(--line); display:flex; gap:10px}
+.ing li:last-child{border-bottom:none}
+.ing .q{min-width:5.5em; font-weight:600; color:var(--accent)}
+.steps{margin:0; padding-left:1.4em}
+.steps li{margin:0 0 12px; padding-left:4px}
+.steps li.done{opacity:.4; text-decoration:line-through}
+.btn{border:none; border-radius:12px; padding:12px 16px; background:var(--accent); color:var(--accent-ink); font-weight:600; width:100%}
+.btn.ghost{background:var(--card); color:var(--ink); border:1px solid var(--line)}
+.toggle{display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--muted)}
+/* shopping */
+.shop li{display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line)}
+.shop li label{flex:1; display:flex; gap:12px; align-items:center}
+.shop input[type=checkbox]{width:24px; height:24px; accent-color:var(--accent)}
+.shop li.have span{text-decoration:line-through; color:var(--muted)}
+.shop .src{font-size:.72rem; color:var(--muted); display:block}
+.shoprecipes{display:flex; flex-direction:column; gap:6px}
+.shoprecipes div{display:flex; justify-content:space-between; align-items:center; font-size:.88rem}
+.x{border:none; background:none; color:var(--warn); font-size:1rem; padding:4px 8px}
+/* lightbox */
+.lb{position:fixed; inset:0; background:#000; z-index:60; display:none; overflow:auto; touch-action:pinch-zoom pan-x pan-y}
+.lb.open{display:block}
+.lb img{width:100%; min-height:100%; object-fit:contain; display:block}
+.lb .round{position:fixed; top:14px; right:14px; background:rgba(255,255,255,.9); color:#000}
+.toast{position:fixed; left:50%; bottom:90px; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:12px; font-size:.88rem; opacity:0; transition:opacity .2s; pointer-events:none; z-index:70}
+.toast.show{opacity:1}
+.page{display:none}
+.page.on{display:block}
+textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(--line); background:var(--card); padding:10px; font:inherit; font-size:.8rem}
+</style>
+</head>
+<body>
+
+<!-- RECEPTEN -->
+<section class="page on" id="p-recepten">
+  <header class="top"><div class="wrap">
+    <h1><span>Mijn Receptenboek</span>
+      <span class="zoom" aria-label="Tekstgrootte">
+        <button data-z="-1" aria-label="Kleiner">A−</button><button data-z="1" aria-label="Groter">A+</button>
+      </span>
+    </h1>
+    <div class="search"><input id="q" type="search" placeholder="Zoek op gerecht of ingrediënten…" autocomplete="off"></div>
+    <p class="hint">Tip: zoek op meerdere ingrediënten met komma's, bijv. <em>kip, courgette</em></p>
+    <div class="chips" id="types"></div>
+    <div class="row">
+      <select id="maxtijd" aria-label="Maximale bereidingstijd">
+        <option value="">Elke bereidingstijd</option>
+        <option value="15">Max 15 min</option>
+        <option value="30">Max 30 min</option>
+        <option value="45">Max 45 min</option>
+        <option value="60">Max 1 uur</option>
+      </select>
+      <select id="sort" aria-label="Sorteren">
+        <option value="az">A–Z</option>
+        <option value="tijd">Snelste eerst</option>
+      </select>
+      <span class="count" id="count"></span>
+    </div>
+  </div></header>
+  <main class="wrap"><div class="grid" id="grid"></div></main>
+</section>
+
+<!-- FAVORIETEN -->
+<section class="page" id="p-favorieten">
+  <header class="top"><div class="wrap"><h1>Favorieten</h1></div></header>
+  <main class="wrap"><div class="grid" id="favgrid"></div></main>
+</section>
+
+<!-- BOODSCHAPPEN -->
+<section class="page" id="p-boodschappen">
+  <header class="top"><div class="wrap"><h1>Boodschappenlijst
+    <button class="chip" id="hideHave">Verberg wat ik heb</button></h1></div></header>
+  <main class="wrap" id="shopwrap"></main>
+</section>
+
+<!-- BEHEER -->
+<section class="page" id="p-beheer">
+  <header class="top"><div class="wrap"><h1>Instellingen</h1></div></header>
+  <main class="wrap">
+    <div class="box">
+      <h4>Weergave</h4>
+      <div class="row">
+        <button class="chip" data-theme-set="">Automatisch</button>
+        <button class="chip" data-theme-set="light">Licht</button>
+        <button class="chip" data-theme-set="dark">Donker</button>
+      </div>
+    </div>
+    <div class="box">
+      <h4>Recepten</h4>
+      <p class="hint" id="dbinfo"></p>
+      <p class="hint">Recepten toevoegen: plak hieronder een JSON-lijst met recepten en tik op Importeren. Bestaande recepten met hetzelfde id worden bijgewerkt.</p>
+      <textarea id="importtxt" placeholder='[{"id":"...","titel":"...","type":"Lunch","tijd":20,"porties":2,"foto":"","ingredienten":[{"q":100,"u":"g","n":"kipfilet"}],"stappen":["..."]}]'></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="doImport" style="width:auto">Importeren</button>
+        <button class="btn ghost" id="doExport" style="width:auto">Exporteer mijn gegevens</button>
+      </div>
+    </div>
+  </main>
+</section>
+
+<nav class="tabs">
+  <button data-page="recepten" class="on"><span class="ic">📖</span>Recepten</button>
+  <button data-page="favorieten"><span class="ic">★</span>Favorieten</button>
+  <button data-page="boodschappen"><span class="ic">🛒</span>Boodschappen<span class="badge" id="shopbadge" hidden></span></button>
+  <button data-page="beheer"><span class="ic">⚙︎</span>Instellingen</button>
+</nav>
+
+<!-- DETAIL -->
+<div class="detail" id="detail" role="dialog" aria-modal="true"></div>
+<div class="lb" id="lb"><button class="round" id="lbclose" aria-label="Sluiten">✕</button><img id="lbimg" alt=""></div>
+<div class="toast" id="toast"></div>
+
+<!-- ============ RECEPTEN-DATA ============
+     Elk recept: id, titel, type (één van de 13 types), tijd (minuten), porties,
+     foto (URL of data:image/...), ingredienten [{q: hoeveelheid of null, u: eenheid, n: naam}], stappen [tekst].
+-->
+<script id="recipe-data" type="application/json">
+[
+ {"id":"vb-ovenomelet","titel":"Ovenomelet met spinazie en feta","type":"Ontbijt","tijd":25,"porties":2,"foto":"",
+  "ingredienten":[{"q":4,"u":"","n":"eieren"},{"q":100,"u":"g","n":"verse spinazie"},{"q":50,"u":"g","n":"feta"},{"q":6,"u":"","n":"cherrytomaatjes"},{"q":1,"u":"tl","n":"olijfolie"},{"q":null,"u":"","n":"peper en zout"}],
+  "stappen":["Verwarm de oven voor op 190 °C en vet een kleine ovenschaal in met de olijfolie.","Laat de spinazie kort slinken in een koekenpan en knijp het vocht eruit.","Klop de eieren los met peper en zout. Verdeel spinazie, gehalveerde tomaatjes en verkruimelde feta over de schaal.","Giet het ei erover en bak 15–18 minuten tot het gestold is."]},
+ {"id":"vb-kip-traybake","titel":"Traybake met kip, courgette en paprika","type":"Hoofdgerecht","tijd":40,"porties":2,"foto":"",
+  "ingredienten":[{"q":250,"u":"g","n":"kipfilet"},{"q":1,"u":"","n":"courgette"},{"q":1,"u":"","n":"rode paprika"},{"q":1,"u":"","n":"rode ui"},{"q":150,"u":"g","n":"krieltjes"},{"q":1,"u":"el","n":"olijfolie"},{"q":1,"u":"tl","n":"paprikapoeder"},{"q":1,"u":"tl","n":"gedroogde oregano"}],
+  "stappen":["Verwarm de oven voor op 200 °C.","Halveer de krieltjes, snijd de groente in grove stukken en de kip in blokjes.","Meng alles op een bakplaat met olie, paprikapoeder, oregano, peper en zout.","Rooster 25–30 minuten, halverwege omscheppen."]},
+ {"id":"vb-linzensoep","titel":"Rode linzensoep met wortel","type":"Lunch","tijd":30,"porties":4,"foto":"",
+  "ingredienten":[{"q":200,"u":"g","n":"rode linzen"},{"q":3,"u":"","n":"wortels"},{"q":1,"u":"","n":"ui"},{"q":2,"u":"","n":"tenen knoflook"},{"q":1,"u":"l","n":"groentebouillon"},{"q":1,"u":"tl","n":"komijn"},{"q":0.5,"u":"","n":"citroen"}],
+  "stappen":["Snipper de ui en knoflook, snijd de wortels in plakjes.","Fruit ui en knoflook met de komijn, voeg wortel en afgespoelde linzen toe.","Schenk de bouillon erbij en kook 20 minuten zachtjes.","Pureer en breng op smaak met citroensap, peper en zout."]},
+ {"id":"vb-tzatziki","titel":"Frisse tzatziki","type":"Dips en Sauzen","tijd":10,"porties":4,"foto":"",
+  "ingredienten":[{"q":250,"u":"g","n":"Griekse yoghurt 0%"},{"q":0.5,"u":"","n":"komkommer"},{"q":1,"u":"","n":"teen knoflook"},{"q":1,"u":"el","n":"verse dille"},{"q":1,"u":"tl","n":"citroensap"}],
+  "stappen":["Rasp de komkommer en knijp het vocht eruit.","Meng met yoghurt, geperste knoflook, dille en citroensap.","Breng op smaak en laat 10 minuten opstijven in de koelkast."]},
+ {"id":"vb-kwarkbowl","titel":"Kwarkbowl met rood fruit","type":"Tussendoortje","tijd":5,"porties":1,"foto":"",
+  "ingredienten":[{"q":150,"u":"g","n":"magere kwark"},{"q":75,"u":"g","n":"frambozen"},{"q":1,"u":"el","n":"havermout"},{"q":1,"u":"tl","n":"kaneel"}],
+  "stappen":["Schep de kwark in een kom.","Top met frambozen, havermout en kaneel."]},
+ {"id":"vb-appelmuffins","titel":"Appel-havermuffins","type":"Bakgerechten","tijd":35,"porties":6,"foto":"",
+  "ingredienten":[{"q":150,"u":"g","n":"havermout"},{"q":2,"u":"","n":"eieren"},{"q":1,"u":"","n":"appel"},{"q":100,"u":"g","n":"magere kwark"},{"q":1,"u":"tl","n":"bakpoeder"},{"q":1,"u":"tl","n":"kaneel"}],
+  "stappen":["Verwarm de oven voor op 180 °C.","Maal de havermout fijn en meng met bakpoeder en kaneel.","Klop eieren en kwark door elkaar, rasp de appel erbij en meng met het droge mengsel.","Verdeel over 6 muffinvormpjes en bak 20–22 minuten."]}
+]
+</script>
+
+<script>
+(function(){
+"use strict";
+const TYPES=["Bakgerechten","Bijgerecht","Dips en Sauzen","Drankjes","Feestdagen","Hapjes","Hoofdgerecht","Lunch","Nagerecht","Ontbijt","Snack","Tussendoortje","Voorgerecht"];
+const EMOJI={Bakgerechten:"🧁",Bijgerecht:"🥗","Dips en Sauzen":"🥣",Drankjes:"🥤",Feestdagen:"🎄",Hapjes:"🍢",Hoofdgerecht:"🍲",Lunch:"🥪",Nagerecht:"🍨",Ontbijt:"🍳",Snack:"🥨",Tussendoortje:"🍎",Voorgerecht:"🍤"};
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// ---------- opslag (veilig) ----------
+const mem={};
+const store={
+  get(k,d){try{const v=localStorage.getItem("rb_"+k);return v==null?(k in mem?mem[k]:d):JSON.parse(v)}catch(e){return k in mem?mem[k]:d}},
+  set(k,v){mem[k]=v;try{localStorage.setItem("rb_"+k,JSON.stringify(v))}catch(e){}}
+};
+
+// ---------- data ----------
+let base=[];
+try{base=JSON.parse($("#recipe-data").textContent)}catch(e){base=[]}
+function allRecipes(){
+  const extra=store.get("extra",[]);const map=new Map();
+  base.concat(extra).forEach(r=>{if(r&&r.id)map.set(r.id,r)});
+  return [...map.values()];
+}
+let RECIPES=allRecipes();
+const byId=id=>RECIPES.find(r=>r.id===id);
+
+let favs=new Set(store.get("favs",[]));
+let shop=store.get("shop",{recipes:[],have:[]}); // recipes:[{id,porties}], have:[key]
+let state={type:"",q:"",max:"",sort:"az",hideHave:store.get("hideHave",false)};
+
+// ---------- zoom / thema ----------
+let fs=store.get("fs",16);
+function applyFs(){document.documentElement.style.setProperty("--fs",fs+"px")}
+applyFs();
+$$(".zoom button").forEach(b=>b.onclick=()=>{fs=Math.max(13,Math.min(26,fs+(+b.dataset.z)*2));store.set("fs",fs);applyFs()});
+function applyTheme(t){if(t)document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme;
+  $$("[data-theme-set]").forEach(b=>b.classList.toggle("on",b.dataset.themeSet===(t||"")))}
+applyTheme(store.get("theme",""));
+$$("[data-theme-set]").forEach(b=>b.onclick=()=>{store.set("theme",b.dataset.themeSet);applyTheme(b.dataset.themeSet)});
+
+// ---------- helpers ----------
+function placeholder(r){
+  const e=EMOJI[r.type]||"🍽️";
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='#e3eee9'/><text x='200' y='185' font-size='110' text-anchor='middle'>${e}</text></svg>`;
+  return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
+}
+const img=r=>r.foto||placeholder(r);
+function tijdTxt(m){if(!m)return"";return m<60?m+" min":Math.floor(m/60)+" u"+(m%60?" "+(m%60)+" min":"")}
+function fmt(q){
+  if(q==null||isNaN(q))return"";
+  const fr=[[.25,"¼"],[.5,"½"],[.75,"¾"],[.333,"⅓"],[.667,"⅔"]];
+  const w=Math.floor(q), d=q-w;
+  if(q>=20)return String(Math.round(q/5)*5===Math.round(q)?Math.round(q):Math.round(q));
+  for(const [v,s] of fr){if(Math.abs(d-v)<.04)return (w?w+" ":"")+s}
+  if(d<.04)return String(w);
+  if(d>.96)return String(w+1);
+  return (Math.round(q*10)/10).toString().replace(".",",");
+}
+function norm(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")}
+function toast(t){const el=$("#toast");el.textContent=t;el.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove("show"),1600)}
+
+// ---------- lijst ----------
+function renderTypes(){
+  const present=new Set(RECIPES.map(r=>r.type));
+  const list=[""].concat(TYPES.filter(t=>present.has(t)),[...present].filter(t=>t&&!TYPES.includes(t)));
+  $("#types").innerHTML=list.map(t=>`<button class="chip ${state.type===t?"on":""}" data-t="${esc(t)}">${t?esc((EMOJI[t]||"")+" "+t):"Alles"}</button>`).join("");
+  $$("#types .chip").forEach(b=>b.onclick=()=>{state.type=b.dataset.t;renderTypes();renderList()});
+}
+function matches(r){
+  if(state.type&&r.type!==state.type)return false;
+  if(state.max&&r.tijd&&r.tijd>+state.max)return false;
+  const terms=norm(state.q).split(",").map(s=>s.trim()).filter(Boolean);
+  if(!terms.length)return true;
+  const hay=norm(r.titel+" | "+(r.ingredienten||[]).map(i=>i.n).join(" | "));
+  return terms.every(t=>hay.includes(t));
+}
+function cardHTML(r){
+  return `<div class="card">
+    <button style="all:unset;cursor:pointer;display:block" data-open="${esc(r.id)}">
+      <img class="img" loading="lazy" src="${esc(img(r))}" alt="">
+      <div class="body"><h3>${esc(r.titel)}</h3>
+      <div class="meta"><span>⏱ ${esc(tijdTxt(r.tijd))}</span><span>${esc(r.type||"")}</span></div></div>
+    </button>
+    <button class="favbtn ${favs.has(r.id)?"on":""}" data-fav="${esc(r.id)}" aria-label="Favoriet">${favs.has(r.id)?"★":"☆"}</button>
+  </div>`;
+}
+function bindCards(root){
+  root.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openDetail(b.dataset.open));
+  root.querySelectorAll("[data-fav]").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFav(b.dataset.fav)});
+}
+function renderList(){
+  let list=RECIPES.filter(matches);
+  list.sort(state.sort==="tijd"?(a,b)=>(a.tijd||999)-(b.tijd||999):(a,b)=>a.titel.localeCompare(b.titel,"nl"));
+  $("#count").textContent=list.length+" recept"+(list.length===1?"":"en");
+  $("#grid").innerHTML=list.length?list.map(cardHTML).join(""):`<div class="empty" style="grid-column:1/-1">Geen recepten gevonden.</div>`;
+  bindCards($("#grid"));
+}
+function renderFavs(){
+  const list=RECIPES.filter(r=>favs.has(r.id)).sort((a,b)=>a.titel.localeCompare(b.titel,"nl"));
+  $("#favgrid").innerHTML=list.length?list.map(cardHTML).join(""):`<div class="empty" style="grid-column:1/-1">Nog geen favorieten.<br>Tik op ☆ bij een recept.</div>`;
+  bindCards($("#favgrid"));
+}
+function toggleFav(id){
+  favs.has(id)?favs.delete(id):favs.add(id);store.set("favs",[...favs]);
+  renderList();renderFavs();if(cur&&cur.r.id===id)renderDetail();
+}
+$("#q").oninput=e=>{state.q=e.target.value;renderList()};
+$("#maxtijd").onchange=e=>{state.max=e.target.value;renderList()};
+$("#sort").onchange=e=>{state.sort=e.target.value;renderList()};
+
+// ---------- detail ----------
+let cur=null, wake=null;
+function openDetail(id){
+  const r=byId(id);if(!r)return;
+  cur={r,p:r.porties||1,done:new Set()};
+  renderDetail();$("#detail").classList.add("open");$("#detail").scrollTop=0;
+  document.body.style.overflow="hidden";
+  history.pushState({d:1},"");
+}
+function closeDetail(){$("#detail").classList.remove("open");document.body.style.overflow="";cur=null;releaseWake()}
+window.addEventListener("popstate",()=>{if($("#lb").classList.contains("open"))$("#lb").classList.remove("open");else if(cur)closeDetail()});
+function renderDetail(){
+  const {r,p}=cur, f=p/(r.porties||1);
+  const ings=(r.ingredienten||[]).map(i=>`<li><span class="q">${esc(i.q==null?"":fmt(i.q*f)+(i.u?" "+i.u:""))}</span><span>${esc(i.n)}</span></li>`).join("");
+  const steps=(r.stappen||[]).map((s,k)=>`<li data-step="${k}" class="${cur.done.has(k)?"done":""}">${esc(s)}</li>`).join("");
+  $("#detail").innerHTML=`
+    <div class="dhead"><button class="round" id="dback" aria-label="Terug">←</button>
+      <button class="round ${favs.has(r.id)?"on":""}" id="dfav" aria-label="Favoriet">${favs.has(r.id)?"★":"☆"}</button></div>
+    <img class="hero" id="dimg" src="${esc(img(r))}" alt="">
+    <div class="wrap">
+      <h2>${esc(r.titel)}</h2>
+      <span class="pill">⏱ ${esc(tijdTxt(r.tijd))}</span><span class="pill">${esc(r.type||"")}</span>
+      <div class="box"><h4>Ingrediënten
+        <span class="stepper"><button id="pmin" aria-label="Minder porties">−</button><span>${p} ${p===1?"portie":"porties"}</span><button id="pplus" aria-label="Meer porties">+</button></span></h4>
+        <ul class="ing">${ings}</ul>
+        <div style="margin-top:12px"><button class="btn" id="toShop">🛒 Op boodschappenlijst</button></div>
+      </div>
+      <div class="box"><h4>Bereiding <label class="toggle"><input type="checkbox" id="wake" ${wake?"checked":""}> Scherm aan</label></h4>
+        <ol class="steps">${steps}</ol>
+        <p class="hint">Tik op een stap om hem af te vinken.</p>
+      </div>
+    </div>`;
+  $("#dback").onclick=()=>history.back();
+  $("#dfav").onclick=()=>toggleFav(r.id);
+  $("#pmin").onclick=()=>{if(cur.p>1){cur.p--;renderDetail()}};
+  $("#pplus").onclick=()=>{cur.p++;renderDetail()};
+  $("#toShop").onclick=()=>addToShop(r.id,cur.p);
+  $("#dimg").onclick=()=>{$("#lbimg").src=img(r);$("#lb").classList.add("open");history.pushState({lb:1},"")};
+  $$("#detail [data-step]").forEach(li=>li.onclick=()=>{const k=+li.dataset.step;cur.done.has(k)?cur.done.delete(k):cur.done.add(k);li.classList.toggle("done")});
+  $("#wake").onchange=e=>e.target.checked?requestWake():releaseWake();
+}
+async function requestWake(){try{wake=await navigator.wakeLock.request("screen")}catch(e){wake=null;toast("Scherm-aan wordt hier niet ondersteund");const w=$("#wake");if(w)w.checked=false}}
+function releaseWake(){try{wake&&wake.release()}catch(e){}wake=null}
+$("#lbclose").onclick=()=>history.back();
+
+// ---------- boodschappen ----------
+function saveShop(){store.set("shop",shop);updateBadge()}
+function addToShop(id,p){
+  const e=shop.recipes.find(x=>x.id===id);
+  if(e)e.porties=p;else shop.recipes.push({id,porties:p});
+  saveShop();renderShop();toast("Toegevoegd aan boodschappenlijst");
+}
+function aggregate(){
+  const map=new Map();
+  shop.recipes.forEach(({id,porties})=>{
+    const r=byId(id);if(!r)return;const f=porties/(r.porties||1);
+    (r.ingredienten||[]).forEach(i=>{
+      const key=norm(i.n)+"|"+(i.u||"");
+      if(!map.has(key))map.set(key,{key,n:i.n,u:i.u||"",q:0,noq:false,src:new Set()});
+      const m=map.get(key);if(i.q==null)m.noq=true;else m.q+=i.q*f;m.src.add(r.titel);
+    });
+  });
+  return [...map.values()].sort((a,b)=>a.n.localeCompare(b.n,"nl"));
+}
+function updateBadge(){
+  const have=new Set(shop.have);const n=aggregate().filter(i=>!have.has(i.key)).length;
+  const b=$("#shopbadge");b.hidden=!n;b.textContent=n;
+}
+function renderShop(){
+  const items=aggregate(), have=new Set(shop.have);
+  $("#hideHave").classList.toggle("on",state.hideHave);
+  if(!shop.recipes.length){$("#shopwrap").innerHTML=`<div class="empty">Je lijst is leeg.<br>Open een recept en tik op “Zet op boodschappenlijst”.</div>`;updateBadge();return}
+  const vis=items.filter(i=>!(state.hideHave&&have.has(i.key)));
+  $("#shopwrap").innerHTML=`
+    <div class="box"><h4>Recepten op de lijst</h4><div class="shoprecipes">${shop.recipes.map(x=>{const r=byId(x.id);return r?`<div><span>${esc(r.titel)} · ${x.porties} p.</span><button class="x" data-rm="${esc(x.id)}" aria-label="Verwijder">✕</button></div>`:""}).join("")}</div></div>
+    <p class="hint">Vink aan wat je al in huis hebt. ${have.size?`(${items.filter(i=>have.has(i.key)).length} van ${items.length} al in huis)`:""}</p>
+    <ul class="ing shop">${vis.map(i=>`<li class="${have.has(i.key)?"have":""}"><label><input type="checkbox" data-have="${esc(i.key)}" ${have.has(i.key)?"checked":""}>
+      <span><b>${esc((i.q?fmt(i.q)+(i.u?" "+i.u:""):"")+(i.noq&&i.q?" +":""))}</b> ${esc(i.n)}<span class="src">${esc([...i.src].join(", "))}</span></span></label></li>`).join("")}</ul>
+    <div class="row" style="margin:16px 0"><button class="btn ghost" id="copyShop" style="flex:1">Kopieer lijst</button><button class="btn ghost" id="clearShop" style="flex:1;color:var(--warn)">Lijst leegmaken</button></div>`;
+  $$("[data-rm]").forEach(b=>b.onclick=()=>{shop.recipes=shop.recipes.filter(x=>x.id!==b.dataset.rm);saveShop();renderShop()});
+  $$("[data-have]").forEach(c=>c.onchange=()=>{const k=c.dataset.have;const s=new Set(shop.have);c.checked?s.add(k):s.delete(k);shop.have=[...s];saveShop();renderShop()});
+  $("#clearShop").onclick=()=>{if(confirm("Boodschappenlijst leegmaken?")){shop={recipes:[],have:[]};saveShop();renderShop()}};
+  $("#copyShop").onclick=()=>{
+    const txt=items.filter(i=>!have.has(i.key)).map(i=>"- "+(i.q?fmt(i.q)+(i.u?" "+i.u:"")+" ":"")+i.n).join("\n");
+    (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Lijst gekopieerd"),()=>prompt("Kopieer je lijst:",txt));
+  };
+  updateBadge();
+}
+$("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",state.hideHave);renderShop()};
+
+// ---------- beheer ----------
+function renderBeheer(){$("#dbinfo").textContent=`${RECIPES.length} recepten in je boek · ${favs.size} favorieten.`}
+$("#doImport").onclick=()=>{
+  try{
+    let arr=JSON.parse($("#importtxt").value);if(!Array.isArray(arr))arr=[arr];
+    arr=arr.filter(r=>r&&r.id&&r.titel);
+    const extra=new Map(store.get("extra",[]).map(r=>[r.id,r]));arr.forEach(r=>extra.set(r.id,r));
+    store.set("extra",[...extra.values()]);RECIPES=allRecipes();
+    renderTypes();renderList();renderBeheer();$("#importtxt").value="";toast(arr.length+" recept(en) geïmporteerd");
+  }catch(e){toast("Kon de tekst niet lezen")}
+};
+$("#doExport").onclick=()=>{
+  const data=JSON.stringify({favorieten:[...favs],boodschappen:shop,extraRecepten:store.get("extra",[])},null,1);
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download="receptenboek-gegevens.json";a.click();
+};
+
+// ---------- tabs ----------
+$$("nav.tabs button").forEach(b=>b.onclick=()=>{
+  $$("nav.tabs button").forEach(x=>x.classList.toggle("on",x===b));
+  $$(".page").forEach(p=>p.classList.toggle("on",p.id==="p-"+b.dataset.page));
+  if(b.dataset.page==="favorieten")renderFavs();
+  if(b.dataset.page==="boodschappen")renderShop();
+  if(b.dataset.page==="beheer")renderBeheer();
+  window.scrollTo(0,0);
+});
+
+renderTypes();renderList();updateBadge();
+})();
+</script>
+</body>
+</html>
