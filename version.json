@@ -1,8 +1,8 @@
 {
-  "version": "26.9.9",
+  "version": "26.9.10",
   "datum": "2026-09-22",
   "notities": [
-    "Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up",
-    "Foto's lezen werkt (App Check met reCAPTCHA)"
+    "Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd",
+    "Nieuw deelicoon bij een recept"
   ]
 }

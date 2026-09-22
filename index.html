@@ -226,32 +226,15 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 <section class="page" id="p-beheer">
   <header class="top"><div class="wrap"><h1>Instellingen</h1></div></header>
   <main class="wrap">
-    <div class="box" id="accountBox" hidden>
+    <div class="box" id="accountBox">
       <h4>Account</h4>
-      <p style="margin:0" id="accInfo"></p>
-      <p class="hint" id="syncStatus"></p>
-      <div class="row" style="margin-top:8px"><button class="btn ghost" id="syncNow" style="width:auto">↻ Nu bijwerken</button><button class="btn ghost" id="logoutBtn" style="width:auto;color:var(--warn)">Uitloggen</button></div>
-    </div>
-    <div class="box" id="adminBox" hidden>
-      <h4>Beheer</h4>
-      <p class="hint">Gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up.</p>
-      <button class="btn" id="openAdmin" style="margin-top:6px">🛠 Beheerpagina openen</button>
-    </div>
-    <div class="box">
-      <h4>Over deze app</h4>
-      <p style="margin:0"><b>Versie <span id="verNr"></span></b> · <span id="verDatum"></span></p>
-      <p class="hint" id="verStatus"></p>
-      <ul class="changelog" id="verLog"></ul>
-      <button class="btn ghost" id="checkUpd" style="margin-top:10px">Controleer op updates</button>
-      <p class="hint" style="margin-top:10px">Beveiligd met reCAPTCHA; het <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">privacybeleid</a> en de <a href="https://policies.google.com/terms" target="_blank" rel="noopener">voorwaarden</a> van Google zijn van toepassing.</p>
-    </div>
-    <div class="box">
-      <h4>Weergave</h4>
-      <div class="row">
-        <button class="chip" data-theme-set="">Automatisch</button>
-        <button class="chip" data-theme-set="light">Licht</button>
-        <button class="chip" data-theme-set="dark">Donker</button>
+      <div id="accPart" hidden>
+        <p style="margin:0" id="accInfo"></p>
+        <p class="hint" id="syncStatus"></p>
+        <div class="row" style="margin:8px 0 12px"><button class="btn ghost" id="syncNow" style="width:auto">↻ Nu bijwerken</button><button class="btn ghost" id="logoutBtn" style="width:auto;color:var(--warn)">Uitloggen</button></div>
       </div>
+      <p style="margin:0"><b>Versie <span id="verNr"></span></b> · <span id="verDatum"></span></p>
+      <p class="hint" style="margin-top:6px;font-size:.75rem">Beveiligd met reCAPTCHA; het <a href="https://policies.google.com/privacy" target="_blank" rel="noopener" style="color:inherit">privacybeleid</a> en de <a href="https://policies.google.com/terms" target="_blank" rel="noopener" style="color:inherit">voorwaarden</a> van Google zijn van toepassing.</p>
     </div>
     <div class="box">
       <h4>Recept toevoegen</h4>
@@ -259,15 +242,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
       <button class="btn" id="addRecipe2" style="margin-top:8px">＋ Recept toevoegen</button>
     </div>
     <div class="box">
-      <h4>Delen</h4>
-      <p class="hint" id="shareinfo">Stuur de link naar de app door, of deel je hele receptenboek (inclusief eigen recepten, notities en foto's) als bestand. De ontvanger zet dat bestand terug via “Importeer bestand”.</p>
-      <div class="row" style="margin-top:8px">
-        <button class="btn" id="shareApp" style="width:auto">🔗 Deel link naar app</button>
-        <button class="btn ghost" id="shareBook" style="width:auto">📦 Deel mijn receptenboek</button>
-      </div>
-    </div>
-    <div class="box">
-      <h4>Recepten</h4>
+      <h4>Importeren</h4>
       <p class="hint" id="dbinfo"></p>
       <div class="row" style="margin-bottom:8px">
         <button class="btn ghost" id="importFileBtn" style="width:auto">📂 Importeer bestand</button>
@@ -279,6 +254,19 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
         <button class="btn" id="doImport" style="width:auto">Importeren</button>
         <button class="btn ghost" id="doExport" style="width:auto">Exporteer mijn gegevens</button>
       </div>
+    </div>
+    <div class="box">
+      <h4>Weergave</h4>
+      <div class="row">
+        <button class="chip" data-theme-set="">Automatisch</button>
+        <button class="chip" data-theme-set="light">Licht</button>
+        <button class="chip" data-theme-set="dark">Donker</button>
+      </div>
+    </div>
+    <div class="box" id="adminBox" hidden>
+      <h4>Beheer</h4>
+      <p class="hint">Gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up.</p>
+      <button class="btn" id="openAdmin" style="margin-top:6px">🛠 Beheerpagina openen</button>
     </div>
   </main>
 </section>
@@ -595,7 +583,7 @@ function offerMigration(){
 }
 // ---------- account & beheer in Instellingen ----------
 function renderAccount(){
-  const box=$("#accountBox");if(!box)return;
+  const box=$("#accPart");if(!box)return;
   if(!CLOUD.on){box.hidden=true;$("#adminBox").hidden=true;return}
   box.hidden=false;
   $("#accInfo").textContent=CLOUD.user?`Ingelogd als ${CLOUD.naam} · ${deviceInfo()}`:"Niet ingelogd";
@@ -893,7 +881,7 @@ function renderDetail(){
   const steps=(r.stappen||[]).map((s,k)=>`<li data-step="${k}" class="${cur.done.has(k)?"done":""}">${esc(s)}</li>`).join("");
   $("#detail").innerHTML=`
     <div class="dhead"><button class="round" id="dback" aria-label="Terug">←</button>
-      <span style="display:flex;gap:8px"><button class="round" id="dshare" aria-label="Deel recept">↗</button>
+      <span style="display:flex;gap:8px"><button class="round" id="dshare" aria-label="Deel recept"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M8 9H6.5A1.5 1.5 0 0 0 5 10.5v9A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 17.5 9H16"/><path d="M12 14V3"/><path d="M8.5 6.5 12 3l3.5 3.5"/></svg></button>
       <button class="round ${favs.has(r.id)?"on":""}" id="dfav" aria-label="Favoriet">${favs.has(r.id)?"★":"☆"}</button></span></div>
     <img class="hero" id="dimg" src="${esc(img(r))}" data-ph="${esc(placeholder(r))}" onerror="this.onerror=null;this.src=this.dataset.ph" alt="">
     <div class="wrap">
@@ -1334,7 +1322,7 @@ function renderShop(){
     <p class="hint">Vink aan wat je al in huis hebt. ${have.size?`(${items.filter(i=>have.has(i.key)).length} van ${items.length} al in huis)`:""}</p>
     <ul class="ing shop">${vis.map(i=>`<li class="${have.has(i.key)?"have":""}"><label><input type="checkbox" data-have="${esc(i.key)}" ${have.has(i.key)?"checked":""}>
       <span><b>${esc((i.q?fmt(i.q)+(i.u?" "+i.u:""):"")+(i.noq&&i.q?" +":""))}</b> ${esc(i.n)}<span class="src">${esc([...i.src].join(", "))}</span></span></label></li>`).join("")}</ul>
-    <div class="row" style="margin:16px 0"><button class="btn ghost" id="copyShop" style="flex:1">↗ Deel lijst</button><button class="btn ghost" id="clearShop" style="flex:1;color:var(--warn)">Lijst leegmaken</button></div>`;
+    <div class="row" style="margin:16px 0"><button class="btn ghost" id="copyShop" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M8 9H6.5A1.5 1.5 0 0 0 5 10.5v9A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 17.5 9H16"/><path d="M12 14V3"/><path d="M8.5 6.5 12 3l3.5 3.5"/></svg>Deel lijst</button><button class="btn ghost" id="clearShop" style="flex:1;color:var(--warn)">Lijst leegmaken</button></div>`;
   $$("[data-rm]").forEach(b=>b.onclick=()=>{shop.recipes=shop.recipes.filter(x=>x.id!==b.dataset.rm);saveShop();renderShop()});
   $$("[data-have]").forEach(c=>c.onchange=()=>{const k=c.dataset.have;const s=new Set(shop.have);c.checked?s.add(k):s.delete(k);shop.have=[...s];saveShop();renderShop()});
   $("#clearShop").onclick=()=>{if(confirm("Boodschappenlijst leegmaken?")){shop={recipes:[],have:[]};saveShop();renderShop()}};
@@ -1348,8 +1336,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.9", APP_DATE="2026-09-22";
-const APP_LOG=["Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.10", APP_DATE="2026-09-22";
+const APP_LOG=["Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
@@ -1383,11 +1371,6 @@ async function checkUpdate(opts={}){
 function renderVersion(){
   if(!$("#verNr"))return;
   $("#verNr").textContent=APP_VERSION;$("#verDatum").textContent=datumNL(APP_DATE);
-  const r=remoteVer;
-  $("#verStatus").textContent=location.protocol==="file:"?"Updates controleren kan alleen als de app online staat.":
-    !r?"":cmpVer(r.version,APP_VERSION)>0?`Versie ${r.version} (${datumNL(r.datum)}) staat klaar.`:"Je hebt de nieuwste versie.";
-  const log=(r&&cmpVer(r.version,APP_VERSION)===0&&Array.isArray(r.notities))?r.notities:APP_LOG;
-  $("#verLog").innerHTML=log.map(x=>`<li>${esc(x)}</li>`).join("");
 }
 function initVersion(){
   // adres opschonen na een update (?v=…)
@@ -1399,16 +1382,12 @@ function initVersion(){
   renderVersion();
   checkUpdate({auto:true});
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkUpdate()});
-  $("#checkUpd").onclick=async()=>{const b=$("#checkUpd");b.disabled=true;b.textContent="Bezig…";
-    const nieuw=await checkUpdate();b.disabled=false;b.textContent="Controleer op updates";
-    if(!nieuw)toast(location.protocol==="file:"?"Alleen online te controleren":remoteVer?"Je hebt de nieuwste versie":"Kon niet controleren (geen internet?)")};
 }
 
 // ---------- beheer ----------
 function renderBeheer(){
   const n=RECIPES.filter(r=>noteOf(r.id)).length;
   $("#dbinfo").textContent=`${RECIPES.length} recepten · ${favs.size} favorieten · ${n} met notities · ${photos.size} eigen foto${photos.size===1?"":"'s"}.`;
-  if(location.protocol==="file:")$("#shareinfo").innerHTML=`Je opent de app nu als los bestand op dit apparaat, dus er is nog geen link om te delen. Zet <b>index.html</b> online (bijv. via Netlify Drop of GitHub Pages) om een deelbare link te krijgen. Je receptenboek als bestand delen werkt wel.`;
 }
 // Recepten van buiten (import) netjes maken: ingrediënten mogen ook gewone tekstregels zijn
 function normRecipe(r){
@@ -1465,18 +1444,6 @@ function bookData(){
 function bookFile(){return new File([JSON.stringify(bookData())],"receptenboek.json",{type:"application/json"})}
 function download(file){const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove()}
 $("#doExport").onclick=()=>download(bookFile());
-$("#shareBook").onclick=async()=>{
-  const file=bookFile();
-  if(navigator.canShare&&navigator.canShare({files:[file]})){
-    try{await navigator.share({files:[file],title:"Mijn receptenboek",text:"Open de Recepten-app › Instellingen › Importeer bestand, en kies dit bestand."});return}
-    catch(e){if(e&&e.name==="AbortError")return}
-  }
-  download(file);toast("Bestand opgeslagen — stuur het door als bijlage");
-};
-$("#shareApp").onclick=()=>{
-  if(location.protocol==="file:"){toast("Zet de app eerst online voor een deelbare link");return}
-  shareOrCopy({title:"Recepten",text:"Mijn recepten-app:",url:location.href.split("#")[0]});
-};
 
 // ---------- tabs ----------
 $$("nav.tabs button").forEach(b=>b.onclick=()=>{
