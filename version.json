@@ -1,9 +1,8 @@
 {
-  "version": "26.9.8",
+  "version": "26.9.9",
   "datum": "2026-09-22",
   "notities": [
-    "Nieuwe App Check-sleutel voor het lezen van foto's",
-    "Recepten blijven nu altijd op je toestel bewaard (grotere opslag)",
-    "Filters tijd, sortering en bron naast elkaar"
+    "Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up",
+    "Foto's lezen werkt (App Check met reCAPTCHA)"
   ]
 }
