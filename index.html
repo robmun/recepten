@@ -166,6 +166,8 @@ body.hastimer #detail .wrap, body.hastimer main.wrap{padding-bottom:120px}
 .lb .round{position:fixed; top:14px; right:14px; background:rgba(255,255,255,.9); color:#000}
 .updbar{position:fixed; top:0; left:0; right:0; z-index:80; background:var(--accent); color:var(--accent-ink); padding:calc(10px + env(safe-area-inset-top)) 16px 10px; display:flex; gap:10px; align-items:center; font-size:.9rem; box-shadow:0 4px 14px rgba(0,0,0,.2)}
 .updbar[hidden]{display:none}
+body.hasupd{padding-top:58px}
+body.hasupd header.top{top:58px}
 .updbar b{flex:1}
 .updbar button{border:none; border-radius:10px; padding:8px 12px; font-weight:700; background:var(--accent-ink); color:var(--accent)}
 .updbar .later{background:transparent; color:var(--accent-ink); padding:8px 6px; font-weight:400}
@@ -223,6 +225,37 @@ details.paste summary{cursor:pointer; font-weight:600; font-size:.9rem; padding:
 .status{font-size:.85rem; margin:8px 0 0; color:var(--muted)}
 .status.bad{color:var(--warn)}
 textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(--line); background:var(--card); padding:10px; font:inherit; font-size:.8rem}
+/* ---------- kookboek om te printen / als PDF te bewaren ---------- */
+#printroot{display:none}
+@media print{
+  @page{size:A4; margin:16mm 14mm}
+  body.printing{background:#fff; color:#000; padding:0}
+  body.printing > *{display:none !important}
+  body.printing > #printroot{display:block !important}
+  #printroot{font:11.5pt/1.45 Georgia,"Times New Roman",serif; color:#111}
+  .pb-titel{text-align:center; padding-top:45mm; page-break-after:always}
+  .pb-titel h1{font-size:30pt; margin:0 0 6mm; letter-spacing:.02em}
+  .pb-titel .sub{font-size:12pt; letter-spacing:.22em; text-transform:uppercase; color:#555}
+  .pb-titel .pb-date{margin-top:18mm; font-size:10pt; color:#666}
+  .pb-toc{page-break-after:always}
+  .pb-toc h2{font-size:16pt; margin:0 0 6mm}
+  .pb-toc ol{margin:0; padding-left:6mm; columns:2; column-gap:10mm; font-size:10.5pt}
+  .pb-toc li{margin-bottom:1.5mm; break-inside:avoid}
+  .pb-r{page-break-before:always; page-break-inside:auto}
+  .pb-r:first-of-type{page-break-before:avoid}
+  .pb-r h2{font-size:18pt; margin:0 0 2mm}
+  .pb-r .pmeta{font-size:9.5pt; color:#555; margin:0 0 4mm; border-bottom:.4pt solid #bbb; padding-bottom:2mm}
+  .pb-r img{width:100%; max-height:70mm; object-fit:cover; margin:0 0 5mm; border-radius:2mm}
+  .pb-cols{display:grid; grid-template-columns:38% 1fr; gap:8mm; align-items:start}
+  .pb-r h3{font-size:11pt; text-transform:uppercase; letter-spacing:.08em; margin:0 0 2mm; color:#444}
+  .pb-ing{list-style:none; margin:0; padding:0; font-size:10.5pt}
+  .pb-ing li{margin-bottom:1.6mm; break-inside:avoid}
+  .pb-ing b{font-weight:700}
+  .pb-st{margin:0; padding-left:5mm; font-size:10.5pt}
+  .pb-st li{margin-bottom:3mm}
+  .pb-not{margin-top:5mm; font-size:10pt; border-left:1.2pt solid #999; padding-left:3mm; color:#333; break-inside:avoid}
+  .pb-ben{font-size:10pt; color:#444; margin-top:3mm}
+}
 /* ---------- laptop / computer: groter, breder, zijbalk met grote knoppen ---------- */
 @media (min-width:1000px) and (hover:hover) and (pointer:fine){
   html{font-size:calc(var(--fs) * 1.2)}
@@ -378,6 +411,19 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
       </div>
     </div>
     <div class="box">
+      <h4>Kookboek maken (PDF)</h4>
+      <p class="hint">Maak van een selectie recepten een net kookboek dat je kunt bewaren als PDF of uitprinten.</p>
+      <label class="field" style="margin-top:8px"><span>Welke recepten</span>
+        <select id="pdfsel"></select></label>
+      <div class="row" style="gap:14px;margin-top:6px">
+        <label class="toggle"><input type="checkbox" id="pdfFoto" checked> Met foto's</label>
+        <label class="toggle"><input type="checkbox" id="pdfNotities"> Met notities</label>
+        <label class="toggle"><input type="checkbox" id="pdfInhoud" checked> Met inhoudsopgave</label>
+      </div>
+      <button class="btn" id="pdfGo" style="margin-top:10px"><svg class="bi"><use href="#i-download"/></svg> Kookboek maken</button>
+      <p class="hint" id="pdfHint"></p>
+    </div>
+    <div class="box">
       <h4>Weergave</h4>
       <p class="hint" style="margin:0 0 6px">Tekstgrootte</p>
       <div class="row zoom" aria-label="Tekstgrootte" style="margin-bottom:12px">
@@ -442,6 +488,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 <symbol id="i-thumb" viewBox="0 0 24 24"><path d="M7 10.5 11 3a2.2 2.2 0 0 1 2.2 2.2V9.5h4.3a2 2 0 0 1 2 2.4l-1.2 6a2 2 0 0 1-2 1.6H7z"/><path d="M7 10.5v9H4.5v-9z"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15M9.5 6.5V4h5v2.5M6.5 6.5 7.5 20h9l1-13.5M10 10v6.5M14 10v6.5"/></symbol>
 </defs></svg>
+<div id="printroot" aria-hidden="true"></div>
 <div class="timers" id="timers" hidden></div>
 <div class="bkbar" id="bkbar" hidden><b id="bktxt">Tijd voor een back-up</b><button class="btn ghost" id="bklater" style="width:auto">Later</button><button class="btn" id="bknow" style="width:auto">Nu maken</button></div>
 <div class="updbar" id="updbar" hidden><b id="updtxt">Nieuwe versie beschikbaar</b><button class="later" id="updlater">Later</button><button id="updnow">Bijwerken</button></div>
@@ -3508,8 +3555,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.18", APP_DATE="2026-09-23";
-const APP_LOG=["Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.19", APP_DATE="2026-09-23";
+const APP_LOG=["Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
@@ -3523,10 +3570,11 @@ function applyUpdate(v){
   location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());
 }
 function showUpdBar(j){
+  document.body.classList.add("hasupd");
   $("#updtxt").textContent=`Nieuwe versie ${j.version} beschikbaar`;
   $("#updbar").hidden=false;
   $("#updnow").onclick=()=>applyUpdate(j.version);
-  $("#updlater").onclick=()=>{$("#updbar").hidden=true};
+  $("#updlater").onclick=()=>{$("#updbar").hidden=true;document.body.classList.remove("hasupd")};
 }
 async function checkUpdate(opts={}){
   const j=await fetchRemoteVersion();remoteVer=j;renderVersion();
@@ -3559,8 +3607,82 @@ function initVersion(){
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkUpdate()});
 }
 
+// ---------- kookboek om als PDF te bewaren ----------
+function pdfLijst(){
+  const v=$("#pdfsel").value;
+  if(v==="fav")return RECIPES.filter(r=>favs.has(r.id));
+  if(v==="gezin")return RECIPES.filter(r=>duimCount(r)>0);
+  if(v==="filter")return RECIPES.filter(matches);
+  if(v.startsWith("bron:")){const b=v.slice(5);return RECIPES.filter(r=>(r.bron||"").trim()===b)}
+  if(v.startsWith("type:")){const t=v.slice(5);return RECIPES.filter(r=>r.type===t)}
+  return RECIPES.slice();
+}
+function renderPdfSel(){
+  const sel=$("#pdfsel");if(!sel)return;
+  const b=bronnen(),cnt={};RECIPES.forEach(r=>{cnt[r.type]=(cnt[r.type]||0)+1});
+  const keep=sel.value;
+  sel.innerHTML=`<option value="alles">Alle recepten (${RECIPES.length})</option>
+    <option value="fav">Mijn favorieten (${RECIPES.filter(r=>favs.has(r.id)).length})</option>
+    <option value="gezin">Gezinsfavorieten (${RECIPES.filter(r=>duimCount(r)>0).length})</option>
+    <option value="filter">Wat nu in het overzicht staat (${RECIPES.filter(matches).length})</option>`+
+    (Object.keys(b).length?`<optgroup label="Per bron">`+Object.keys(b).sort((x,y)=>x.localeCompare(y,"nl")).map(n=>`<option value="bron:${esc(n)}">${esc(n)} (${b[n]})</option>`).join("")+`</optgroup>`:"")+
+    `<optgroup label="Per type">`+Object.keys(cnt).sort((x,y)=>x.localeCompare(y,"nl")).map(t=>`<option value="type:${esc(t)}">${esc((EMOJI[t]||"")+" "+t)} (${cnt[t]})</option>`).join("")+`</optgroup>`;
+  if(keep)sel.value=keep;
+  if(!sel.value)sel.value="alles";
+  pdfHint();
+}
+function pdfHint(){
+  const el=$("#pdfHint");if(!el)return;
+  const n=pdfLijst().length;
+  el.innerHTML=n?`${n} recept${n===1?"":"en"}, ongeveer ${Math.max(2,n+2)} pagina's. `+
+    `Op een laptop: kies bij het printvenster <b>Bewaar als PDF</b>. Op een iPhone: open de app in Safari (niet vanaf het beginscherm), tik op delen › Print en knijp de voorbeeldpagina open om hem als PDF te bewaren.`
+    :"Er zijn geen recepten in deze selectie.";
+}
+function pdfNaam(){
+  const v=$("#pdfsel").value,o=$("#pdfsel").selectedOptions[0];
+  return v==="alles"?"Munnichs kookboek":v==="fav"?"Mijn favorieten":v==="gezin"?"Gezinsfavorieten":
+    v==="filter"?"Selectie recepten":(o?o.textContent.replace(/\s*\(\d+\)$/,"").trim():"Recepten");
+}
+function printHTML(list,opt,titel){
+  const datum=new Date().toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"});
+  const rec=r=>{
+    const f=opt.foto?(photos.get(r.id)||safeImg(r.foto)||""):"";
+    const ing=(r.ingredienten||[]).map(i=>`<li>${i.q!=null?`<b>${esc(fmt(i.q)+(i.u?" "+i.u:""))}</b> `:""}${esc(i.n)}</li>`).join("");
+    const st=(r.stappen||[]).map(x=>`<li>${esc(x)}</li>`).join("");
+    const meta=[r.type,r.tijd?(r.tijdGeschat?"± ":"")+tijdTxt(r.tijd):"",r.porties?r.porties+" porties":"",
+      (r.bron||"").trim()?"bron: "+r.bron:"",naamUid(r._cby)?"toegevoegd door "+naamUid(r._cby):""].filter(Boolean).map(esc).join(" · ");
+    const not=opt.notities&&noteOf(r.id)?`<div class="pb-not"><b>Notitie:</b> ${esc(noteOf(r.id))}</div>`:"";
+    const ben=(r.benodigdheden||[]).length?`<p class="pb-ben"><b>Benodigdheden:</b> ${esc(r.benodigdheden.join(", "))}</p>`:"";
+    return `<section class="pb-r"><h2>${esc(r.titel)}</h2><p class="pmeta">${meta}</p>
+      ${f?`<img src="${esc(f)}" alt="">`:""}
+      <div class="pb-cols">
+        <div><h3>Ingrediënten</h3><ul class="pb-ing">${ing||"<li>—</li>"}</ul>${ben}</div>
+        <div><h3>Bereiding</h3><ol class="pb-st">${st||"<li>—</li>"}</ol>${not}</div>
+      </div></section>`;
+  };
+  return `<div class="pb-titel"><p class="sub">Familie Munnichs</p><h1>${esc(titel)}</h1>
+      <p class="pb-date">${list.length} recept${list.length===1?"":"en"} · ${esc(datum)}</p></div>
+    ${opt.inhoud?`<div class="pb-toc"><h2>Inhoud</h2><ol>${list.map(r=>`<li>${esc(r.titel)}</li>`).join("")}</ol></div>`:""}
+    ${list.map(rec).join("")}`;
+}
+function maakKookboek(){
+  const list=pdfLijst().sort((a,b)=>a.titel.localeCompare(b.titel,"nl"));
+  if(!list.length){toast("Geen recepten in deze selectie");return}
+  if(list.length>150&&!confirm(`Dit worden ${list.length} recepten (ruim ${list.length+2} pagina's). Doorgaan?`))return;
+  const opt={foto:$("#pdfFoto").checked,notities:$("#pdfNotities").checked,inhoud:$("#pdfInhoud").checked};
+  const titel=pdfNaam();
+  $("#printroot").innerHTML=printHTML(list,opt,titel);
+  const oudeTitel=document.title;document.title=titel; // wordt de bestandsnaam van de PDF
+  document.body.classList.add("printing");
+  const klaar=()=>{document.body.classList.remove("printing");document.title=oudeTitel;$("#printroot").innerHTML="";window.removeEventListener("afterprint",klaar)};
+  window.addEventListener("afterprint",klaar);
+  setTimeout(()=>{try{window.print()}catch(e){toast("Printen lukt hier niet; open de app in Safari of op de laptop")}
+    setTimeout(()=>{if(document.body.classList.contains("printing"))klaar()},60000)},300);
+}
+
 // ---------- beheer ----------
 function renderBeheer(){
+  renderPdfSel();
   const n=RECIPES.filter(r=>noteOf(r.id)).length;
   $("#dbinfo").textContent=`${RECIPES.length} recepten · ${favs.size} favorieten · ${n} met notities · ${photos.size} foto${photos.size===1?"":"'s"} in de database.`;
 }
@@ -3619,6 +3741,8 @@ function bookData(){
 function bookFile(){return new File([JSON.stringify(bookData())],"receptenboek.json",{type:"application/json"})}
 function download(file){const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove()}
 $("#doExport").onclick=()=>download(bookFile());
+$("#pdfGo").onclick=maakKookboek;
+$("#pdfsel").onchange=pdfHint;
 
 // ---------- tabs ----------
 $$("nav.tabs button").forEach(b=>b.onclick=()=>{
