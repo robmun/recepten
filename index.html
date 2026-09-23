@@ -37,6 +37,8 @@ button{font:inherit; color:inherit; cursor:pointer}
 input,select{font:inherit; color:inherit}
 .wrap{max-width:760px; margin:0 auto; padding:0 16px}
 header.top{position:sticky; top:0; z-index:20; background:var(--bg); padding:12px 0 8px; border-bottom:1px solid var(--line)}
+.brand{display:flex; flex-direction:column; line-height:1.15}
+.brand small{font-size:.52em; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:1px}
 header.top h1{font-size:1.35rem; margin:0 0 8px; display:flex; align-items:center; justify-content:space-between; gap:8px}
 .zoom{display:flex; gap:4px}
 .zoom button{border:1px solid var(--line); background:var(--card); border-radius:10px; min-width:40px; height:36px; font-weight:600}
@@ -126,6 +128,10 @@ nav.tabs button.on{color:var(--accent); font-weight:600}
 #detail.cook .tbtns{display:flex; flex-wrap:wrap; gap:8px; margin-top:.3em}
 #detail.cook .tbtn{display:inline-block; font-size:.6em; padding:.35em .8em; border-radius:999px}
 .tbtns{display:none}
+.duimrow{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0 2px}
+.duimtxt{font-size:.82rem; color:var(--muted)}
+.dbadge{display:inline-flex; align-items:center; gap:3px; color:var(--accent); font-weight:600; flex:0 0 auto}
+.dbadge svg{width:.95em; height:.95em; fill:currentColor; fill-opacity:.15}
 .cookbtn{border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:999px; padding:6px 12px; font:inherit; font-size:.85rem; font-weight:600; cursor:pointer}
 .cookbtn.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
 .timers{position:fixed; left:0; right:0; bottom:calc(62px + env(safe-area-inset-bottom)); z-index:90; display:flex; flex-direction:column; gap:6px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); pointer-events:none}
@@ -286,7 +292,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 <!-- RECEPTEN -->
 <section class="page on" id="p-recepten">
   <header class="top"><div class="wrap">
-    <h1><span>Recepten</span>
+    <h1><span class="brand"><small>Familie Munnichs</small>Recepten</span>
       <button id="addRecipe" class="addbtn" aria-label="Recept toevoegen"><svg class="bi"><use href="#i-plus"/></svg></button>
     </h1>
     <div class="search"><input id="q" type="search" placeholder="Zoek op gerecht of ingrediënten…" autocomplete="off" enterkeyhint="search">
@@ -313,6 +319,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
         <option value="nieuw">Nieuwste</option>
       </select>
       <select id="bronsel" aria-label="Bron" hidden></select>
+      <select id="doorsel" aria-label="Toegevoegd door" hidden></select>
     </div>
     </div>
   </div></header>
@@ -321,7 +328,12 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 
 <!-- FAVORIETEN -->
 <section class="page" id="p-favorieten">
-  <header class="top"><div class="wrap"><h1>Favorieten</h1></div></header>
+  <header class="top"><div class="wrap"><h1>Favorieten</h1>
+    <div class="row" style="padding-bottom:6px">
+      <button class="chip on" data-fav-tab="mijn">Mijn favorieten</button>
+      <button class="chip" data-fav-tab="gezin">Gezinsfavorieten</button>
+    </div>
+  </div></header>
   <main class="wrap"><div class="grid" id="favgrid"></div></main>
 </section>
 
@@ -402,8 +414,8 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 <div class="toast" id="toast"></div>
 <div class="login" id="login" hidden><div class="loginbox">
   <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0BAMAAADP4xsBAAAAMFBMVEX////+/v79/f38/Pz7+/vh4eGUlJRPT08pKSkJCQkFBQUEBAQDAwMCAgIBAQEAAAA2aEBwAAASn0lEQVR42u2baVhT17rH/2snKlJJVgAxIBkAUasFgoBDrYBap57aqrS2Ph1Osae1faxPTydPxaHnPudWezroaeupnU4de2tvgTr0ntpBGSy2jkACelWGHQJqEbJ3glaLZK/7IQmSEYjeb64vkL2zf/vd//Wud73r3SvArXar3Wq3WuiN9PWLkaoEAIBVaLypBkRmGq5/kE1PuGlWR6WWADNUFADAhEJgRETlzUBzuQcwIyFStdz1+SOh0VqIEV38DaNH1GGhatQLwDGnxpHTgcPFwieYduDG0MRQOXTBxCekIpKgch0SrGKWvnP1mV1J7WLQa2XBxcj5ZeHCtXcUdSbGDnYfGxwZ59gvPUZUP3ZpxZDRMm3tU/PzC68lhnk9S9zA/TPv74w6ohNDRMs0LS9vkFWNCfMjVFzLsWWNQ4Kyg6A5bcsra7+6Ldb/2cHD9i8R5cHYgbuRy64oWPN1uusTaxRAVIyJUEVS17H2oVdXfDNE7D/aUFuwao9rEFobh+Z2n2griXQNR8flsBV7HYEA8kAnxplecZOlyhmZnX8XBACASjXsCVYYpQcA2TXMguV4P62W4en3dzvJ9UMNHzUIZ0vdxixQJS53fD3OZfe3Bbml/UJz2gk7iw0AwKryfl/TUAiS4Yohx0XMSBz956MyCgDtWcvXa/j+oHPPrYhIBwCpZt66E4XIpOy4s79IBmX7MSNp07WDegBoT1uyo6sf6Ch7wdIOAHC0TFp9tDSTHhMhnw8VBFwsBZnO9svzZj/iZFfPWSSW9hnNKRa9a6JO8rJPog11/ID5qgTV0wA+FqzCxV2yqY6ShZOW7jUAkGpOrfYriV+04bfTxQYAUvPEZZ9mRpQMyI9aC6C+EZHjAHxY2borWnd85qRV5XoAjuT8bVIf0XJSkJIOgJlmL9o9zVG6MGktjvIqlcoZ97g8fHjiE7nh2MAVK00UQMNdc1DaN7Rh9DYLABjnPLMtvf7y4olP/GBP73G+3fxA5+oze9LrB65YagHATCfXOPoUQ+QXXzCrATTc/dyW9Pb2lzcM3zfGI5CEx9adWMYPKRvTdoVZYwESPcek5vuCzp61PByAI2vFxnTruVf/8yuZzzQbHrN/CbrK4o6FrSlRA1xFzMdSHwSRc/sEA8BMpwqmWU+uWFM8zq9/1meFLdqbUPfsuxYADt0SvrR3q7PvGZ8AwDz1vThrbcGq3ekB8ocW6zOmw4kl0AwGuIPKj6Re0fLm7a0UcKQvKRSbX35tjyFQ/BosPz/oEpJPPf+zGohJsFO+N3T27NGxAGp2/0Pf8vTbgckAJ58gfB7ZdeZ5O0BMCh+1vdFyy1ODKeDIfHcYy9nydXrQSbn5ocu7O3+mV9RATPqZsAvB0dkTXuMA1GzdRurym8cFTyXCf3zWyJLFv9gBcmzglywomgyY96sacGSsUp97ctVt7jHS6jijds03VwYz3qxuH8QBQFzFsM86KglTA9FzDglXg6GToj4IB1Dzr3LFqG17XDhHSsLwkWVqAGB3xFVGjRtpG5LUGAYA0RO6SrWn/tEUBq7iCuGD+XVuWrYBcMQrlPY3NW6h7fsabLevtACA7ZeyHQ1vx01p3bXcmU21pyxqsv4x1QB0aRRdQayWtZR2hoGYPhsUM35duOugdcy7/1V7iF5RA/ht1xd0et4vn63/PJapASC8YuCXKNliB4hJ9OxIT7Ru5nQCODLmcab8X11ysLbXCw1x0VdftQNS8sNTwoyc+PwXsb8vcj5w9ByjSrIxNYhd+vZqYHTSpKtqENPW32ImrHUbLY1ZFH/qfNspekUNSbHpyjB2/kzs20L0szanB1YM3MrYX+1AxOzXPHyE87iPaaUBcMw5LquYudd9sLZgCg903XVEB4CJDBAZI+jusrEv3Ztw4J9VgGzfY7kB0Sl55QDs75R15T3iHoYsztwIAD8VpXo8YHfSJPs2q3LsER0ATVZTQDQ30gYw4Wxu7YRuo6WUvTwAOLQbA6wDxryULS9KFQHFYnMgtKxmpQGQ7txRPW1pd+y4tFnhtD7eHCC7k3+bGXHnKzwg2/eYIUBiphtv5oDaTVPYxO3dqpnPKqzOf2LTAoz3sbMjdGFvWQDliLIAVitGGQEpjm86tLJHf9j0zr98pc45Nn1nqn2P6vZvE4H4F5v8o7lajR5gKXsiHiy/fjRVcEksa2Td7uo1hjVZpZNNPMBZ7tP7t5p7nAK1BTmXM69fyoaLbomdZPP/ikL8CU+04slcy765ADmpo361Th1jomBx5ibLUkv3QQllrnEgEQ4A2OHDwMdeinyrxcGt4yg0ye/5tVpM5gEpZW/XM3t7XMauP8F2EQBkeiDRS+34p0on1/CAYjHxh5a1pBiA5vVaec+nuq6rexA7eKDBC00zpjb9mg1wxh5i9+zG+wCQOlXTc/r+lge4bzWqYiVAzun8oTULmgDHRJM1z9j/0oM2qzF1Iw/oko1+0DSmGiBCtXKkx3DtFoJAGRgdsdg2xAxgSL7NF01qdHqg5h1d7aM9Rysh1wPlfTSwIsa5ttPZAOGyqQ9axj1HAbRTTufZiTnUfRMpSJngnL7jAAO4n6+LzXk4mTSnKWKhyeOaWtqNDiZ2Shav3cgDIvUVRLPADjCpXEz0jJ1N1GVGRLoH20scaQGGmEVAn1ztg9bHlAGXNqNW4+V67lyOJpoB0k30+hbXNJe25gC35ct80NWUAuazadzjnvZok+2ukDu0GoDVfVzlqQ85qeSKFQCu94gbzV3SUYCaI+bbvN3KiSYtOgqO5LpunBBT5vVwI4wMAGfv9iNZt4Ps7IQ09lMkQe1pDt8adgGA3L6LA6m4MNh2FSCRutFKz+9FzHoNemUYOWYO4z2tZgQAYwd56uNWCZEAcFdeOQBNcomgB9Ksh5Z5pceMYDjPA6CiV1CNmMgBnERadN4BZOwsBRUhq3jTBkD5Et9eDNQ8ONTmPWi4uaJIARpd7SXI6CR9GCz/Xcrt7PS+5tCgVgG6mevCAZDaJfaBF0ZnT1/tPQeTn3iRe8EGKv+CeQpCKQ+IbanEd9qO35QArsWVPsQfelhpwKiZxT5fY9ReLAFdUzkvD3FqLCrmR/pco9qnMSinu9IHTlMMiNJx3+WCKtrIAKA76LjQpJlSIEXEoGrf+CDpeeUw98xDIgFwfga9dj4YBxCi9UITJYUUL4L6SZEiORtV0t5CtiMB2C6CkDTqhX6UgrFykYZeMSbsNp4HOemOAVzPKxlXQ3udvBwA/NYoSLbB2WueVrvnbZLqx2zWM2diHQAiRX9oJUQ/6aQEALJKkCl+7LEBkLmvkhbZeHL6cT/ok4Co7xEqXWjlVALYq/wqwO7hleYL97vYLa/u4vl/+UuIeYrONNcI6enXKgKIgt/eanp7iyh++aITLU2qTgObfETn1wqBAZATDzQlIiC2pfi94Gw22IiPnFIx6WAVcLBY6+d71FYFgKq80APM3bp4NenOplKA784UlH6mL1esaBIYwPRekY+6PNoXzVgJAEmQ9VzE+F0gyG0yAIpRXlZDBCBCdQMvb6hX/sl5eZB4A2wVWI9syxstt928l1830Wrm1bfczXtRxgz/b2hvt7mJaK9KizdaUt4AOrjVXfqbIboHWrwZUjujG/GxmgKgztAVapPgMaO7YojoCiE3Yr1oVVwGYD/MPMNTZ5oZQFPLjVgN3SACENETLQIAjW6S3ZDYyljnhOKpdSMDqArsBl1bBMQupQfaXsmAiHn9eK/u5xWDiKHVcM29XnmIpALbHnJHsjiXsKJX9uRSQmkLHc2q4eFm7hSHEQDEcYd4A2iLkVJAI3qhsUMEx91/I47N0EEpWIqX1ZIkiiC1gNUQKvnSZpBHKSRptycaKaIImCkuakNF26yuwCTzSRYAgFqahZAHTP2UK8TftMu3GwB9spmFnC7oRZZgAy5tlrzQYpsWGJJP2cYQO1K63YaYMsDcrvBCd5QIACPCWJEP1fdcy9kGvReaMApw3FwqhjjPcA1o0el7VhzcaIntEEH+Tcnp1NDQpiJKHqVgt/O8N3q4mQdALQdCDX4NqYkAJHZQ9Cm1iADSkvkQA5R0u03ItPSYvnqgq1pzgK58NrYppH5k2r0sqQq4tN6n1IKOYgXA2e8jZ9JCQXdsVrZo9QDfluObhzACkJ+VXHFIQ73pqN72GAVSeNEHLSk28oByBK/YFoLYLM5mnWYDHPFlVb51vjt4EYh/UbzNEoLYUsoe5ahygEh2P4lZdWsOQOw5XCie3bxed1lLgY71Cj/ojiIFwP2sVRXrQoiodSrzMj1grkvzg5aU20VAmyVqXu+3Io7Z2615RoCNsVX5Qw9v4oGIxWbHmX5nwk2fKZUjzYCk2SP6S4JtZ3QAd/DeqKJ+i91x1HDyOQNg36zwm19bilMBMiCT3fF6VX/12CFOUwKwHE3zi3YotovA8BeNwpns/vqHRjFhLyBNMlf5RbPhRh7gfro3qkjo16iRbjsaeegPeoApykX/Cw7L6fsAMiDTOuafVf0bL3utCxIoULs6O0C5Siar6aBwaCJoh735uk6acAZwsqs8ADjiIxyATN5x/YUTjLvNLCfVAGZdy1cFqITl5qQagKatZssj2tw+ox2aeGK/ZHGf878CM57OBjBkRnnX4cf6rkftaumOJXsAtKzXBlzc2YqVAGjm3Mj9gdWmXqUWx+xjXIUhAWBdxwK/kXbc+XoVwJ3Mqhp++N7rRbapFOBUjh71M/QoQNSuKdfkPU4BafI3HhHCc/HCXf2rHYia/RNXSs+7pn1Syw9JTNSeLXCGS1o+IjFRMz7RvZeyK+NN2dn8C2qgZk97kLf/Nj5eFQauwlGSfOGNJtfGRuHKpw0Njc8Nps4bXd7R0NDyR3cJktVu3RkxfkM4IEVv48XAaJbNKWKBqPk/dv6CZJdhyjmdYzMy37U57zRkfmtGxt2vuj2revYfEpsX2dSAFPGMEKwMK+c6mgEYKzYoLn8puXJtWzqAE+6eM84DcMCllkO3pEzp3IFl3O21icgLTcbdm2oAHNqHbWz0eyYnjp0AkNE99ioBzl0ZN558jdre1BqAiIiIruDF48jxeyzOS0AKVlp6cWnj7EU2pnYaXVHktXvae3nbydNBFIi+pwlDv9a1xwYlH5/7zFek9s9mNeDI/PiC2EvJWz/RacSwO8dJo3YWBdtC1J61fH1C3fMrO5yP6b0X0WdRfumUXlADQ5li9+9Hf33lQGwQ8rq/GWImfHg2DHBkvjfwQm9oKbv1L9xVkEuLjMbEkguv7A/Erp+y7vtI5aH88wkAavZ8fA69odF8igpqILxiVh0Z+t35QOzjczeV/xBWU/BSOICuzPdi+N7RUrbtVTuAoYztGBPx3bnlda2+dV+p+oF15d+k1z79xkEK4KfvP25A72g0n6JX1ACR3//b53FDv2uZML5ksOdmZnZCk1lQ/oO+9qEtu0YDaJ/ux2h/aCn1wn+YwwDuRP6v/zM2vkg4tzi6JPw6XDjZlvf7y+83p9cunFOXDkBq/2ib9Wqg0qpn/JOef8u1eXLZJxmKkhlJE56QiqBSAbCKmEE7VzcURuuOL5wzWQYAxglxeh59QiOx+SOFAQAzzVn2SbThRyxUjXyx++zhYuET3N1VunDSUhMF0J62pLoSfUQjV72jTA+Ame5Z9RY3zVGCGQkqFaFgoiBYCxFtONbxwOxHTBSAJP9gg9+du/43Sf+EYW9ZAJCUf7+pOrJLfrf0AyCfSsHaSoFoQ9ePA57adM1EAbCaQUfvKkWfrYbh5N8nRwEAq8r78MRXomwqnPuNSQZFW5V8QdLar5IoAFTf87CpHv1Ak5xBz3Q5NwrWz7j2TsPRKpAkPQBrgwj5gsRZOUWuszlLtwTYkx5wa7fjoZ2fTnPGiub5nesbhYvOp5bPV0WOeuKsMd113+VvGarQLzSihKc3ueIea7g8D50bBCaCUFVMPi6WJVJ3hCpIr0Q/0Uiv+dMHha7Nk6xBzHKv6x3FxAVG/Yx131vq0W80DLV/+uCr7nmLNTgV7eaCnXhw3ZHAG/SDoUlOxZObzloCFTEk0/x1R4L8rCDoDy3MKfvOpWWV+A+q9QPuKij/ISJIIh609PtrdpFwfnHdaV94++l7Vc+93xyM3Et5lkw9MHPcOvxgS+wZslmD7QG8cbwwoz7o4qG3ym9SvXxB0lq0lZAEQgEw0SpGT8WHJ86W9vYzn16LylEppQPyI2flAtbjIlRR6cC1dxpbd8lTevvlU+/1apJRJ8oXqFSq8bkArn0mCMLZUjL1RK8rqb6UwrlxbTy46ZRQMJH9KEKWe7wPS7S+VdlJor6+uxA2Tmro09qvzwV8olJRAEzo35ryVrvVbrVbLcT2f4++PXZR0piZAAAAAElFTkSuQmCC" alt="">
-  <h1>Recepten</h1>
-  <p class="hint">Log in met je e-mailadres en wachtwoord. Je account werkt op één toestel.</p>
+  <h1>Munnichs kookboek</h1>
+  <p class="hint">Welkom! Log in met je e-mailadres en wachtwoord. Je account werkt op één toestel.</p>
   <label class="field"><span>E-mailadres</span><input id="l_naam" type="email" inputmode="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
   <label class="field"><span>Wachtwoord</span><input id="l_ww" type="password" autocomplete="current-password"></label>
   <button class="btn" id="l_go">Inloggen</button>
@@ -427,6 +439,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5"/></symbol>
 <symbol id="i-tools" viewBox="0 0 24 24"><path d="M14.5 6.8a3.6 3.6 0 0 1 4.8-3.4l-2.4 2.4 1.8 1.8 2.4-2.4a3.6 3.6 0 0 1-4.7 4.8L6.9 19.5a1.9 1.9 0 0 1-2.7-2.7l9.5-9.5a3.6 3.6 0 0 1 .8-.5z"/></symbol>
 <symbol id="i-undo" viewBox="0 0 24 24"><path d="M4 9.5h7.5A5.5 5.5 0 1 1 11.5 20.5H7M4 9.5 8 5.5M4 9.5l4 4"/></symbol>
+<symbol id="i-thumb" viewBox="0 0 24 24"><path d="M7 10.5 11 3a2.2 2.2 0 0 1 2.2 2.2V9.5h4.3a2 2 0 0 1 2 2.4l-1.2 6a2 2 0 0 1-2 1.6H7z"/><path d="M7 10.5v9H4.5v-9z"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15M9.5 6.5V4h5v2.5M6.5 6.5 7.5 20h9l1-13.5M10 10v6.5M14 10v6.5"/></symbol>
 </defs></svg>
 <div class="timers" id="timers" hidden></div>
@@ -2333,8 +2346,34 @@ async function onCloudUser(u){
     return;
   }
   store.set("cloudUser",u.uid);
-  hideLogin();renderAccount();await CLOUD.cacheReady;startSync();loadPrivate();setTimeout(checkBackupReminder,4000);
+  hideLogin();renderAccount();await CLOUD.cacheReady;startSync();loadPrivate();watchLeden();
+  if(CLOUD.isAdmin)syncLeden();else zetEigenNaam();
+  setTimeout(checkBackupReminder,4000);
 }
+// namen van de gezinsleden: de beheerder zet ze in één gedeeld document, iedereen leest ze
+async function syncLeden(){
+  const F=CLOUD.F;
+  try{
+    const s=await F.getDocs(F.collection(CLOUD.db,"users"));
+    const map={};s.forEach(d=>{const x=d.data();if(x&&x.naam)map[d.id]=x.naam});
+    CLOUD.userNames=map;CLOUD.leden={...map};
+    await F.setDoc(F.doc(CLOUD.db,"gezin","leden"),map,{merge:true});
+  }catch(e){console.error("leden",e)}
+}
+async function zetEigenNaam(){
+  const F=CLOUD.F;
+  try{await F.setDoc(F.doc(CLOUD.db,"gezin","leden"),{[CLOUD.user.uid]:CLOUD.naam},{merge:true})}catch(e){console.error("naam",e)}
+}
+function watchLeden(){
+  const F=CLOUD.F;
+  CLOUD.unsub.push(F.onSnapshot(F.doc(CLOUD.db,"gezin","leden"),snap=>{
+    if(!snap.exists())return;
+    CLOUD.leden={...(snap.data()||{})};
+    if(!CLOUD.isAdmin)CLOUD.userNames={...CLOUD.leden};
+    renderDoorsel();renderList();renderFavs();if(cur)renderDetail();
+  },e=>console.error(e)));
+}
+const naamUid=uid=>!uid?"":(CLOUD.user&&uid===CLOUD.user.uid?CLOUD.naam:((CLOUD.leden||{})[uid]||""));
 function stopSync(){CLOUD.unsub.forEach(f=>{try{f()}catch(e){}});CLOUD.unsub=[]}
 function setSync(t){CLOUD.status=t;const el=$("#syncStatus");if(el)el.textContent=t+(CLOUD.wacht?` · ${CLOUD.wacht} wijziging${CLOUD.wacht===1?"":"en"} wacht op internet`:"")}
 function startSync(){
@@ -2532,7 +2571,7 @@ function renderAdmin(){
   if($("#a_migr"))$("#a_migr").onclick=()=>migrateLocal().then(renderAdmin);
   $("#a_resync").onclick=()=>{if(!confirm("Alle recepten opnieuw uit de gedeelde database ophalen?"))return;CLOUD.cache.clear();CLOUD.sync=0;CLOUD.psync=0;store.set("cloudpsync",0);persistCache();refreshAll();startSync();toast("Alles wordt opnieuw opgehaald")};
   renderActivity();
-  loadUsers().then(()=>{const n=$("#a_nusers");if(n)n.textContent=Object.keys(CLOUD.userNames||{}).length});
+  loadUsers().then(()=>{const n=$("#a_nusers");if(n)n.textContent=Object.keys(CLOUD.userNames||{}).length;syncLeden()});
 }
 const normT=t=>norm(t).replace(/[^a-z0-9]+/g," ").trim();
 function renderActivity(){
@@ -2691,7 +2730,7 @@ async function shareOrCopy({title,text,url}){
   try{await navigator.clipboard.writeText(t);toast("Gekopieerd — plak het in een bericht")}catch(e){prompt("Kopieer en deel:",t)}
 }
 let shop=store.get("shop",{recipes:[],have:[]}); // recipes:[{id,porties}], have:[key]
-let state={type:"",q:"",max:"",sort:"az",bron:"",hideHave:store.get("hideHave",false)};
+let state={type:"",q:"",max:"",sort:"az",bron:"",door:"",hideHave:store.get("hideHave",false)};
 
 // ---------- zoom / thema ----------
 let fs=store.get("fs",16);
@@ -2750,8 +2789,18 @@ function renderBronnen(){
   $("#bronlist").innerHTML=sugg.map(b=>`<option value="${esc(b)}">`).join("");
 }
 $("#bronsel").onchange=e=>{state.bron=e.target.value;renderList()};
+function renderDoorsel(){
+  const sel=$("#doorsel");if(!sel)return;
+  const cnt={};RECIPES.forEach(r=>{if(r._cby)cnt[r._cby]=(cnt[r._cby]||0)+1});
+  const uids=Object.keys(cnt).filter(u=>naamUid(u)).sort((a,b)=>naamUid(a).localeCompare(naamUid(b),"nl"));
+  if(state.door&&!cnt[state.door])state.door="";
+  sel.hidden=uids.length<2;
+  sel.innerHTML=`<option value="">Van iedereen</option>`+uids.map(u=>`<option value="${esc(u)}" ${state.door===u?"selected":""}>Van ${esc(naamUid(u))} (${cnt[u]})</option>`).join("");
+}
+$("#doorsel").onchange=e=>{state.door=e.target.value;renderList()};
 function matches(r){
   if(state.type&&r.type!==state.type)return false;
+  if(state.door&&r._cby!==state.door)return false;
   if(state.bron){const b=(r.bron||"").trim();if(state.bron===NOBRON?b:b!==state.bron)return false}
   if(state.max&&r.tijd&&r.tijd>+state.max)return false;
   const terms=norm(state.q).split(",").map(s=>s.trim()).filter(Boolean);
@@ -2768,7 +2817,7 @@ function cardHTML(r){
         ${r.tijd?`<span class="tbadge">${ico("clock")} ${r.tijdGeschat?"± ":""}${esc(tijdTxt(r.tijd))}</span>`:""}
       </span>
       <span class="body"><h3>${esc(r.titel)}</h3>
-      <span class="meta"><span class="mtype">${esc(r.type||"")}</span>${bron?`<span class="mbron">${esc(bron)}</span>`:""}${noteOf(r.id)?ico("note"):""}</span></span>
+      <span class="meta"><span class="mtype">${esc(r.type||"")}</span>${bron?`<span class="mbron">${esc(bron)}</span>`:""}${duimCount(r)?`<span class="dbadge">${ico("thumb")}${duimCount(r)>1?duimCount(r):""}</span>`:""}${noteOf(r.id)?ico("note"):""}</span></span>
     </button>
     <button class="favbtn ${favs.has(r.id)?"on":""}" data-fav="${esc(r.id)}" aria-label="Favoriet">${ico("star")}</button>
   </div>`;
@@ -2787,11 +2836,19 @@ function renderList(){
   $("#grid").innerHTML=list.length?list.map(cardHTML).join(""):`<div class="empty" style="grid-column:1/-1">${RECIPES.length?"Geen recepten gevonden.":"Nog geen recepten.<br>Tik op + om er een toe te voegen, of importeer je receptenbestand via Instellingen."}</div>`;
   bindCards($("#grid"));
 }
+let favTab="mijn";
 function renderFavs(){
-  const list=RECIPES.filter(r=>favs.has(r.id)).sort((a,b)=>a.titel.localeCompare(b.titel,"nl"));
-  $("#favgrid").innerHTML=list.length?list.map(cardHTML).join(""):`<div class="empty" style="grid-column:1/-1">Nog geen favorieten.<br>Tik op ☆ bij een recept.</div>`;
+  const gezin=favTab==="gezin";
+  const list=gezin
+    ? RECIPES.filter(r=>duimCount(r)>0).sort((a,b)=>duimCount(b)-duimCount(a)||a.titel.localeCompare(b.titel,"nl"))
+    : RECIPES.filter(r=>favs.has(r.id)).sort((a,b)=>a.titel.localeCompare(b.titel,"nl"));
+  const leeg=gezin?"Nog geen gezinsfavorieten.<br>Tik bij een recept op “Lekker!” — iedereen ziet dat dan."
+                  :"Nog geen favorieten.<br>Tik op de ster bij een recept.";
+  $("#favgrid").innerHTML=list.length?list.map(cardHTML).join(""):`<div class="empty" style="grid-column:1/-1">${leeg}</div>`;
   bindCards($("#favgrid"));
 }
+$$("[data-fav-tab]").forEach(b=>b.onclick=()=>{favTab=b.dataset.favTab;
+  $$("[data-fav-tab]").forEach(x=>x.classList.toggle("on",x===b));renderFavs()});
 function toggleFav(id){
   favs.has(id)?favs.delete(id):favs.add(id);store.set("favs",[...favs]);savePrivate();
   renderList();renderFavs();if(cur&&cur.r.id===id)renderDetail();
@@ -2811,6 +2868,7 @@ function renderFchips(){
   if(state.type)c.push(["type",state.type]);
   if(state.max)c.push(["max",TIJDTXT[state.max]||("Max "+state.max+" min")]);
   if(state.bron)c.push(["bron",state.bron===NOBRON?"Zonder bron":state.bron]);
+  if(state.door)c.push(["door","Van "+(naamUid(state.door)||"?")]);
   if(state.sort!=="az")c.push(["sort",SORTTXT[state.sort]]);
   $("#fchips").innerHTML=c.map(([k,t])=>`<button class="fchip" data-fclear="${k}" aria-label="${esc(t)} weghalen"><span>${esc(t)}</span><b>✕</b></button>`).join("");
   $$("#fchips [data-fclear]").forEach(b=>b.onclick=()=>{
@@ -2819,8 +2877,33 @@ function renderFchips(){
     if(k==="max"){state.max="";$("#maxtijd").value=""}
     if(k==="bron"){state.bron="";$("#bronsel").value=""}
     if(k==="sort"){state.sort="az";$("#sort").value="az"}
+    if(k==="door"){state.door="";$("#doorsel").value=""}
     renderList();
   });
+}
+
+// ---------- gezinsfavorieten (duimen) ----------
+const duimUids=r=>Object.entries((r&&r.duimen)||{}).filter(([,v])=>v===true).map(([u])=>u);
+const duimCount=r=>duimUids(r).length;
+const ikDuim=r=>!!(CLOUD.user&&(r.duimen||{})[CLOUD.user.uid]===true);
+function duimTekst(r){
+  const mij=(CLOUD.user||{}).uid;
+  const ik=duimUids(r).includes(mij);
+  const anderen=duimUids(r).filter(u=>u!==mij).map(naamUid).filter(Boolean);
+  const lijst=a=>a.length===1?a[0]:a.slice(0,-1).join(", ")+" en "+a[a.length-1];
+  if(ik&&!anderen.length)return "Jij vindt dit lekker";
+  if(ik)return "Lekker volgens jou en "+lijst(anderen);
+  if(anderen.length)return "Lekker volgens "+lijst(anderen);
+  return "";
+}
+function toggleDuim(id){
+  if(!CLOUD.on||!CLOUD.user){toast("Werkt alleen als je bent ingelogd");return}
+  const F=CLOUD.F,uid=CLOUD.user.uid,r=byId(id);if(!r)return;
+  const nieuw=!ikDuim(r);
+  const kopie={...r,duimen:{...(r.duimen||{}),[uid]:nieuw}};
+  CLOUD.cache.set(id,plainObj(kopie));persistCache();
+  cloudWrite(F.setDoc(F.doc(CLOUD.db,"recipes",id),{duimen:{[uid]:nieuw},updatedAt:F.serverTimestamp(),updatedBy:uid},{merge:true}),"Lekker-knop");
+  refreshAll();if(cur&&cur.r.id===id){cur.r=byId(id)||kopie;renderDetail()}
 }
 
 // ---------- detail ----------
@@ -2856,6 +2939,13 @@ function renderDetail(){
       <div class="pills">${r.tijd?`<span class="pill"${r.tijdGeschat?' title="Geschatte bereidingstijd"':""}>${ico("clock")} ${r.tijdGeschat?"± ":""}${esc(tijdTxt(r.tijd))}</span>`:""}<span class="pill">${esc(r.type||"")}</span>${(r.tags||[]).map(t=>`<span class="pill" style="background:var(--line);color:var(--ink)">${esc(t)}</span>`).join("")}</div>
       ${isAangepast(r)?`<div class="photorow"><span class="pill" style="align-self:center">${ico("pencil")} Aangepast</span><button class="btn ghost" id="drestore" style="flex:1">${ico("undo")} Terug naar origineel recept</button></div>`:""}
       ${r.bron||safeUrl(r.url)?`<p class="srcline">Bron: <b>${esc(r.bron||"onbekend")}</b>${safeUrl(r.url)?` · <a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener noreferrer">bekijk origineel ↗</a>`:""}</p>`:""}
+      ${(()=>{const d=naamUid(r._cby),a=naamUid(r._by);
+        return d?`<p class="srcline">Toegevoegd door <b>${esc(d)}</b>${a&&a!==d?` · laatst aangepast door <b>${esc(a)}</b>`:""}</p>`:""})()}
+      <div class="duimrow">
+        <button class="cookbtn ${ikDuim(r)?"on":""}" id="ddu" aria-pressed="${ikDuim(r)}">${ico("thumb")} ${ikDuim(r)?"Vind ik lekker":"Lekker!"}</button>
+        ${duimTekst(r)?`<span class="duimtxt">${esc(duimTekst(r))}</span>`:""}
+      </div>
+
       <div class="box" id="ding"><h4>Ingrediënten
         <span class="stepper"><button id="pmin" aria-label="Minder porties">−</button><span>${p} ${p===1?"portie":"porties"}</span><button id="pplus" aria-label="Meer porties">+</button></span></h4>
         <ul class="ing">${ings}</ul>
@@ -2871,6 +2961,7 @@ function renderDetail(){
       </div>
     </div>`;
   $("#dshare").onclick=()=>shareRecipe(r,cur.p);
+  $("#ddu").onclick=()=>toggleDuim(r.id);
   $("#dphoto").onclick=()=>{$("#photoFile").value="";$("#photoFile").click()};
   if($("#dphotodel"))$("#dphotodel").onclick=()=>{if(confirm("Eigen foto verwijderen?")){pdb.del(r.id);if(CLOUD.on)cloudSavePhoto(r.id,"");renderDetail();renderList();renderFavs()}};
   let nt;const ta=$("#dnotes");
@@ -3361,7 +3452,7 @@ function openEditor(r){
   if(isNew)setTimeout(()=>$("#e_url").focus(),50);
 }
 function closeEditor(){$("#editor").classList.remove("open");$("#editor").innerHTML="";ed=null;if(!cur)document.body.style.overflow=""}
-function refreshAll(){RECIPES=allRecipes();renderTypes();renderBronnen();renderList();renderFavs();updateBadge()}
+function refreshAll(){RECIPES=allRecipes();renderTypes();renderBronnen();renderDoorsel();renderList();renderFavs();updateBadge()}
 function saveExtra(rec){
   if(CLOUD.on){cloudSaveRecipe(rec);refreshAll();return}
   const extra=store.get("extra",[]).filter(x=>x.id!==rec.id);extra.push(rec);store.set("extra",extra);refreshAll();
@@ -3417,8 +3508,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.17", APP_DATE="2026-09-23";
-const APP_LOG=["Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.18", APP_DATE="2026-09-23";
+const APP_LOG=["Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
@@ -3540,7 +3631,7 @@ $$("nav.tabs button").forEach(b=>b.onclick=()=>{
 });
 
 if(store.get("zochtAl",false))$("#qtip").hidden=true;
-renderTypes();renderBronnen();renderList();updateBadge();
+renderTypes();renderBronnen();renderDoorsel();renderList();updateBadge();
 initVersion();
 initAccountUI();initCloud();
 pdb.loadAll().then(()=>{if(photos.size){renderList();renderFavs();if(cur)renderDetail()}});
