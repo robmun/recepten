@@ -1,7 +1,9 @@
 {
-  "version": "26.9.24",
+  "version": "26.9.25",
   "datum": "2026-09-24",
   "notities": [
-    "Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren"
+    "Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander",
+    "Duimen en notities staan los van het recept",
+    "Opslaan van een recept raakt alleen de receptvelden"
   ]
 }

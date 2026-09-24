@@ -49,6 +49,9 @@ header.top h1{font-size:1.35rem; margin:0 0 8px; display:flex; align-items:cente
 .clearq[hidden]{display:none}
 .typesel{width:100%; height:44px; margin-top:4px; font-weight:600; border-radius:12px; border:1px solid var(--line); background:var(--card); padding:0 10px; font-size:.95rem}
 .notes{min-height:90px; font-size:.95rem}
+.andernot{margin-top:10px; padding:8px 10px; background:var(--bg); border-radius:10px; font-size:.9rem; display:grid; grid-template-columns:1fr auto; gap:2px 8px}
+.andernot b{font-size:.78rem; color:var(--accent)}
+.andernot span{grid-column:1/-1; white-space:pre-wrap}
 .saved{font-size:.75rem; color:var(--muted); font-weight:400; opacity:0; transition:opacity .2s}
 .saved.show{opacity:1}
 .photorow{display:flex; gap:8px; margin:10px 0 0}
@@ -2289,19 +2292,45 @@ const RECAPTCHA_SITE_KEY="6LdFHsktAAAAAG8EJg74IOWZ8jRqYiOlMZYPi5KE";
 const NAMEN={"g7inej":"Robert","1s0bet7":"Heleen","ayspfp":"Jasmijn","867uht":"Maura"};
 const mailHash=s=>{s=String(s||"").trim().toLowerCase();let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0}return h.toString(36)};
 const CLOUD={on:!!(FIREBASE_CONFIG&&window.FB),F:null,auth:null,db:null,user:null,naam:"",isAdmin:false,
-  cache:new Map(),sync:0,psync:0,unsub:[],justLoggedIn:false,status:"",privTimer:null,noteTimers:{},firstLoad:false};
+  cache:new Map(),sync:0,psync:0,gsync:0,unsub:[],justLoggedIn:false,status:"",privTimer:null,noteTimers:{},firstLoad:false,
+  gedeeld:{},leden:{}};
 const tsMs=t=>!t?0:typeof t==="number"?t:t.toMillis?t.toMillis():(t.seconds?t.seconds*1000:0);
 const naamVan=email=>{if(NAMEN[mailHash(email)])return NAMEN[mailHash(email)];const n=String(email||"").split("@")[0].replace(/munnichs|greuters/i,"")||String(email||"").split("@")[0];return n.charAt(0).toUpperCase()+n.slice(1)};
 function deviceId(){let d=store.get("device","");if(!d){d=(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2,10));store.set("device",d)}return d}
 function deviceInfo(){const u=navigator.userAgent;const t=/iPhone/.test(u)?"iPhone":/iPad/.test(u)?"iPad":/Android/.test(u)?"Android":/Macintosh/.test(u)?"Mac":/Windows/.test(u)?"Windows":"Onbekend";
   const app=(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone;return t+(app?" (app)":" (browser)")}
 function recList(){return CLOUD.on?[...CLOUD.cache.values()]:store.get("extra",[])}
-function noteOf(id){if(CLOUD.on){const r=CLOUD.cache.get(id);return r&&r.notitie||""}return notes[id]||""}
-function setNote(id,text){
+
+// ---------- gedeelde persoonlijke gegevens (notities en duimen), per gezinslid een eigen document ----------
+// Zo kan het opslaan van een recept nooit de notitie of duim van iemand anders overschrijven.
+const mijnUid=()=>CLOUD.user?CLOUD.user.uid:"";
+const gedeeldVan=uid=>(CLOUD.gedeeld||{})[uid]||{};
+function notitiesVan(id){
+  const uit=[];
+  Object.keys(CLOUD.gedeeld||{}).forEach(uid=>{
+    const t=(gedeeldVan(uid).notities||{})[id];
+    if(t&&String(t).trim())uit.push({uid,naam:naamUid(uid)||"?",tekst:String(t)});
+  });
+  // oude notitie uit de tijd dat er één gedeeld veld was
+  const r=CLOUD.cache.get(id);
+  if(r&&r.notitie&&String(r.notitie).trim())uit.push({uid:"",naam:"notitie van vóór de splitsing",tekst:String(r.notitie),oud:true});
+  return uit.sort((a,b)=>(a.uid===mijnUid()?-1:b.uid===mijnUid()?1:a.naam.localeCompare(b.naam,"nl")));
+}
+const heeftNotitie=id=>notitiesVan(id).length>0;
+function noteOf(id){ // eigen notitie (ook gebruikt voor zoeken, back-up en het kookboek)
+  if(!CLOUD.on)return notes[id]||"";
+  const eigen=(gedeeldVan(mijnUid()).notities||{})[id];
+  if(eigen&&String(eigen).trim())return eigen;
+  const r=CLOUD.cache.get(id);return (r&&r.notitie)||"";
+}
+function setNote(id,text,uid){
   if(!CLOUD.on){if(String(text).trim())notes[id]=text;else delete notes[id];store.set("notes",notes);return}
-  const r=CLOUD.cache.get(id);if(!r)return;r.notitie=String(text).trim()?text:"";persistCache();
+  const wie=uid||mijnUid();
+  const g=CLOUD.gedeeld[wie]=CLOUD.gedeeld[wie]||{naam:naamUid(wie)||"",notities:{},likes:{}};
+  g.notities=g.notities||{};g.notities[id]=String(text).trim()?text:"";
   clearTimeout(CLOUD.noteTimers[id]);
-  CLOUD.noteTimers[id]=setTimeout(()=>{const F=CLOUD.F;cloudWrite(F.setDoc(F.doc(CLOUD.db,"recipes",id),{notitie:r.notitie,updatedAt:F.serverTimestamp(),updatedBy:CLOUD.user.uid},{merge:true}),"Notitie opslaan")},700);
+  CLOUD.noteTimers[id]=setTimeout(()=>{const F=CLOUD.F;
+    cloudWrite(F.setDoc(F.doc(CLOUD.db,"gedeeld",wie),{naam:g.naam||naamUid(wie)||"",notities:{[id]:g.notities[id]},updatedAt:F.serverTimestamp()},{merge:true}),"Notitie opslaan")},700);
 }
 let persistT=null;
 function persistCache(){clearTimeout(persistT);persistT=setTimeout(()=>{pdb.kvPut("cloud",{v:2,sync:CLOUD.sync,recs:[...CLOUD.cache.values()]})},400)}
@@ -2309,7 +2338,10 @@ function dropLocalExtra(){ // lokale kopie opruimen zodra alles in de gedeelde d
   if(store.get("extra",[]).length&&!localOnly().length){try{localStorage.removeItem("rb_extra")}catch(e){}delete mem.extra}}
 const plainObj=o=>JSON.parse(JSON.stringify(o,(k,v)=>v===undefined?undefined:v));
 function fromCloud(id,d){const r={...d,id};r._upd=tsMs(d.updatedAt);r._cat=tsMs(d.createdAt);r._by=d.updatedBy||"";r._cby=d.createdBy||"";for(const k of["updatedAt","createdAt","updatedBy","createdBy","deleted"])delete r[k];return plainObj(r)}
-function toCloud(r){const d=plainObj(r);delete d.onvolledig;for(const k of Object.keys(d))if(k[0]==="_")delete d[k];return d}
+function toCloud(r){const d=plainObj(r);delete d.onvolledig;
+  // notities en duimen horen niet meer in het recept; die staan per gezinslid apart
+  delete d.notitie;delete d.duimen;
+  for(const k of Object.keys(d))if(k[0]==="_")delete d[k];return d}
 // wijzigingen tellen die nog naar de database moeten
 function cloudWrite(p,wat){
   CLOUD.wacht=(CLOUD.wacht||0)+1;setSync(CLOUD.status);
@@ -2362,7 +2394,7 @@ function initCloud(){
       localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager(),cacheSizeBytes:40*1024*1024})})}
     catch(e){console.error("opslag",e);CLOUD.db=F.initializeFirestore(app,{ignoreUndefinedProperties:true})}
   }catch(e){console.error(e);CLOUD.on=false;toast("Gedeelde database niet beschikbaar");return}
-  CLOUD.psync=store.get("cloudpsync",0);
+  CLOUD.psync=store.get("cloudpsync",0);CLOUD.gsync=store.get("cloudgsync",0);
   CLOUD.cacheReady=(async()=>{
     let d=await pdb.kvGet("cloud"),fromOld=false;
     if(!d){const old=store.get("cloudrec",null);if(old&&old.length){d={recs:old,sync:store.get("cloudsync",0)};fromOld=true}}
@@ -2409,7 +2441,7 @@ async function onCloudUser(u){
     return;
   }
   store.set("cloudUser",u.uid);
-  hideLogin();renderAccount();await CLOUD.cacheReady;startSync();loadPrivate();watchLeden();
+  hideLogin();renderAccount();await CLOUD.cacheReady;startSync();loadPrivate();watchLeden();watchGedeeld();
   if(CLOUD.isAdmin)syncLeden();else zetEigenNaam();
   setTimeout(checkBackupReminder,4000);
 }
@@ -2437,6 +2469,42 @@ function watchLeden(){
   },e=>console.error(e)));
 }
 const naamUid=uid=>!uid?"":(CLOUD.user&&uid===CLOUD.user.uid?CLOUD.naam:((CLOUD.leden||{})[uid]||""));
+// vangnet voor het geval een verwijderbericht ons nooit bereikt heeft
+async function opschonen(stil){
+  const F=CLOUD.F;
+  try{
+    const s=await F.getDocs(F.collection(CLOUD.db,"recipes"));
+    const bestaat=new Set();s.forEach(d=>{const x=d.data();if(!x.deleted)bestaat.add(d.id)});
+    let weg=0;
+    [...CLOUD.cache.keys()].forEach(id=>{if(!bestaat.has(id)){CLOUD.cache.delete(id);weg++}});
+    let fweg=0;
+    [...photos.keys()].forEach(id=>{if(!bestaat.has(id)){pdb.del(id);fweg++}});
+    store.set("lastCheck",Date.now());
+    if(weg||fweg){persistCache();refreshAll();if(!stil)toast(`${weg} verdwenen recept${weg===1?"":"en"} opgeruimd`)}
+    else if(!stil)toast("Alles klopt; niets op te ruimen");
+    return weg;
+  }catch(e){if(!stil)cloudErr("Opruimen",e);console.error(e);return 0}
+}
+function watchGedeeld(){
+  const F=CLOUD.F;
+  const q=F.query(F.collection(CLOUD.db,"gedeeld"),F.where("updatedAt",">",F.Timestamp.fromMillis(CLOUD.gsync||0)));
+  CLOUD.unsub.push(F.onSnapshot(q,snap=>{
+    let max=CLOUD.gsync||0,ch=0;
+    snap.docChanges().forEach(c=>{
+      const d=c.doc.data({serverTimestamps:"estimate"}),uid=c.doc.id;
+      if(!c.doc.metadata.hasPendingWrites){const t=tsMs(d.updatedAt);if(t>max)max=t}
+      const eigen=uid===mijnUid();
+      const oud=CLOUD.gedeeld[uid]||{};
+      // wat we zelf net typten niet overschrijven met een oudere serverversie
+      CLOUD.gedeeld[uid]={naam:d.naam||oud.naam||"",
+        notities:eigen?{...(d.notities||{}),...(oud.notities||{})}:(d.notities||{}),
+        likes:eigen?{...(d.likes||{}),...(oud.likes||{})}:(d.likes||{})};
+      ch++;
+    });
+    if(max>(CLOUD.gsync||0)){CLOUD.gsync=max;store.set("cloudgsync",max)}
+    if(ch){renderList();renderFavs();if(cur&&!$("#editor").classList.contains("open")&&!(document.activeElement&&document.activeElement.id==="dnotes"))renderDetail()}
+  },e=>console.error("gedeeld",e)));
+}
 function stopSync(){CLOUD.unsub.forEach(f=>{try{f()}catch(e){}});CLOUD.unsub=[]}
 function setSync(t){CLOUD.status=t;const el=$("#syncStatus");if(el)el.textContent=t+(CLOUD.wacht?` · ${CLOUD.wacht} wijziging${CLOUD.wacht===1?"":"en"} wacht op internet`:"")}
 function startSync(){
@@ -2461,7 +2529,10 @@ function startSync(){
         if(!nr){closeDetail();toast("Dit recept is verwijderd")}
         else if(!(document.activeElement&&document.activeElement.id==="dnotes")&&!$("#editor").classList.contains("open")){cur.r=nr;renderDetail()}}}
     setSync(`${CLOUD.cache.size} recepten · bijgewerkt ${new Date().toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})}`);
-    if(!CLOUD.firstLoad){CLOUD.firstLoad=true;offerMigration();dropLocalExtra()}
+    if(!CLOUD.firstLoad){CLOUD.firstLoad=true;offerMigration();dropLocalExtra();
+      // eens per twee weken stilletjes controleren of alles wat hier staat nog bestaat
+      if(Date.now()-store.get("lastCheck",0)>14*864e5)setTimeout(()=>opschonen(true),8000);
+    }
   },e=>{console.error(e);setSync("Bijwerken lukt niet: "+(e.code||e.message))}));
   const qp=F.query(F.collection(db,"photos"),F.where("updatedAt",">",F.Timestamp.fromMillis(CLOUD.psync)));
   CLOUD.unsub.push(F.onSnapshot(qp,snap=>{CLOUD.pq=(CLOUD.pq||Promise.resolve()).then(()=>fotoSnap(snap)).catch(e=>console.error(e))},
@@ -2484,6 +2555,13 @@ async function fotoSnap(snap){
     if(max>CLOUD.psync){CLOUD.psync=max;store.set("cloudpsync",max)}
     if(ch){renderList();renderFavs();if(cur&&!$("#editor").classList.contains("open")&&!(document.activeElement&&document.activeElement.id==="dnotes"))renderDetail()}
 }
+// alleen bepaalde velden bijwerken; raakt notities, duimen of andere velden van iemand anders niet
+function cloudUpdate(id,velden){
+  const F=CLOUD.F;
+  const r=CLOUD.cache.get(id);if(r){Object.assign(r,velden);CLOUD.cache.set(id,plainObj(r));persistCache()}
+  return cloudWrite(F.setDoc(F.doc(CLOUD.db,"recipes",id),{...plainObj(velden),updatedAt:F.serverTimestamp(),updatedBy:mijnUid()},{merge:true}),"Opslaan");
+}
+const EDITVELDEN=["titel","bron","url","type","tijd","tijdGeschat","porties","foto","ingredienten","stappen","benodigdheden","origineel","toegevoegd","tags"];
 function cloudSaveRecipe(rec){
   const F=CLOUD.F,isNew=!CLOUD.cache.has(rec.id);
   CLOUD.cache.set(rec.id,plainObj(rec));persistCache();
@@ -2498,6 +2576,19 @@ function cloudDeleteRecipe(id){
 async function cloudSavePhoto(id,data){
   const F=CLOUD.F;
   return cloudWrite(F.setDoc(F.doc(CLOUD.db,"photos",id),{data:data||"",deleted:!data,updatedAt:F.serverTimestamp(),updatedBy:CLOUD.user.uid}),"Foto opslaan");
+}
+// veel recepten tegelijk bijwerken, maar alleen de opgegeven velden
+async function cloudVelden(lijst,prog){
+  const F=CLOUD.F,uid=mijnUid();let n=0;
+  for(let i=0;i<lijst.length;i+=400){
+    const b=F.writeBatch(CLOUD.db);
+    lijst.slice(i,i+400).forEach(({id,velden})=>{
+      b.set(F.doc(CLOUD.db,"recipes",id),{...plainObj(velden),updatedAt:F.serverTimestamp(),updatedBy:uid},{merge:true});
+      const r=CLOUD.cache.get(id);if(r){Object.assign(r,velden);CLOUD.cache.set(id,plainObj(r))}
+    });
+    await b.commit();n+=Math.min(400,lijst.length-i);prog&&prog(n,lijst.length);
+  }
+  persistCache();refreshAll();
 }
 async function cloudBulk(recs,prog){
   const F=CLOUD.F,uid=CLOUD.user.uid;let n=0;
@@ -2532,10 +2623,16 @@ function savePrivate(now){
 // eenmalig: recepten die alleen op dit toestel staan naar de gedeelde database
 function localOnly(){const ids=new Set(CLOUD.cache.keys());return store.get("extra",[]).filter(r=>r&&r.id&&!ids.has(r.id))}
 async function migrateLocal(){
-  const recs=localOnly().map(r=>({...r,notitie:r.notitie||notes[r.id]||""}));
+  const recs=localOnly();
+  // notities die alleen op dit toestel stonden gaan naar je eigen gedeelde document
+  const eigenNotities={};recs.forEach(r=>{const t=r.notitie||notes[r.id]||"";if(String(t).trim())eigenNotities[r.id]=t});
   if(!recs.length){toast("Niets om over te zetten");return}
   setSync("Recepten overzetten…");
   try{await cloudBulk(recs,(n,t)=>setSync(`Recepten overzetten: ${n} van ${t}`));
+    if(Object.keys(eigenNotities).length){const F=CLOUD.F;
+      await F.setDoc(F.doc(CLOUD.db,"gedeeld",mijnUid()),{naam:CLOUD.naam,notities:eigenNotities,updatedAt:F.serverTimestamp()},{merge:true});
+      const g=CLOUD.gedeeld[mijnUid()]=CLOUD.gedeeld[mijnUid()]||{naam:CLOUD.naam,notities:{},likes:{}};
+      g.notities={...g.notities,...eigenNotities};}
     let p=0;for(const r of recs){const d=photos.get(r.id);if(d){await cloudSavePhoto(r.id,d);p++}}
     toast(`${recs.length} recepten${p?` en ${p} foto's`:""} gedeeld`);dropLocalExtra();renderAccount();
   }catch(e){cloudErr("Overzetten",e)}
@@ -2615,11 +2712,15 @@ function renderAdmin(){
       <div class="box"><h4>📷 Foto's veiligstellen</h4>
         <div id="a_fotobox"></div>
       </div>
+      ${oudeSporen().length?`<div class="box"><h4>📦 Notities en duimen verhuizen</h4>
+        <p class="hint">${oudeSporen().length} recepten hebben nog een notitie of duim uit de oude opzet, waarin ze in het recept zelf stonden. Verplaats ze naar de persoonlijke documenten; daarna kan niemands notitie nog overschreven worden. Maak eerst een back-up.</p>
+        <button class="btn" id="a_verhuis" style="margin-top:6px">Nu verhuizen</button></div>`:""}
       <div class="box"><h4>💾 Back-up & onderhoud</h4>
         <p class="hint">De back-up bevat alle recepten (met notities en bron), alle foto's uit je database en jouw favorieten. Laatste back-up: <b>${lastBackupTxt()}</b>. Je krijgt elke maand een herinnering.</p>
         <div class="row" style="margin-top:8px">
           <button class="btn" id="a_backup" style="width:auto"><svg class="bi"><use href="#i-download"/></svg> Back-up downloaden</button>
           ${localOnly().length?`<button class="btn ghost" id="a_migr" style="width:auto">⬆︎ ${localOnly().length} recepten van dit toestel delen</button>`:""}
+          <button class="btn ghost" id="a_check" style="width:auto"><svg class="bi"><use href="#i-refresh"/></svg> Controleer op verdwenen recepten</button>
           <button class="btn ghost" id="a_resync" style="width:auto"><svg class="bi"><use href="#i-refresh"/></svg> Alles opnieuw ophalen</button>
         </div>
       </div>
@@ -2632,7 +2733,9 @@ function renderAdmin(){
   $("#a_backup").onclick=adminBackup;
   renderFotoBox();
   if($("#a_migr"))$("#a_migr").onclick=()=>migrateLocal().then(renderAdmin);
-  $("#a_resync").onclick=()=>{if(!confirm("Alle recepten opnieuw uit de gedeelde database ophalen?"))return;CLOUD.cache.clear();CLOUD.sync=0;CLOUD.psync=0;store.set("cloudpsync",0);persistCache();refreshAll();startSync();toast("Alles wordt opnieuw opgehaald")};
+  if($("#a_verhuis"))$("#a_verhuis").onclick=verhuisPersoonlijk;
+  $("#a_check").onclick=async()=>{const b=$("#a_check");b.disabled=true;await opschonen(false);b.disabled=false;renderAdmin()};
+  $("#a_resync").onclick=()=>{if(!confirm("Alle recepten opnieuw uit de gedeelde database ophalen?"))return;CLOUD.cache.clear();CLOUD.sync=0;CLOUD.psync=0;CLOUD.gsync=0;CLOUD.gedeeld={};store.set("cloudpsync",0);store.set("cloudgsync",0);persistCache();refreshAll();startSync();toast("Alles wordt opnieuw opgehaald")};
   renderActivity();
   loadUsers().then(()=>{const n=$("#a_nusers");if(n)n.textContent=Object.keys(CLOUD.userNames||{}).length;syncLeden()});
 }
@@ -2648,27 +2751,34 @@ function renderActivity(){
 async function renameBron(oud){
   const nieuw=(prompt(`Nieuwe naam voor bron “${oud}”:\n(Bestaat die naam al, dan worden de bronnen samengevoegd.)`,oud)||"").trim();
   if(!nieuw||nieuw===oud)return;
-  const recs=RECIPES.filter(r=>(r.bron||"").trim()===oud).map(r=>({...r,bron:nieuw}));
+  const recs=RECIPES.filter(r=>(r.bron||"").trim()===oud);
   if(!confirm(`${recs.length} recepten krijgen de bron “${nieuw}”. Doorgaan?`))return;
-  try{await cloudBulk(recs,(n,t)=>toast(`Bron aanpassen: ${n} van ${t}`));toast(`Bron hernoemd naar “${nieuw}”`);renderAdmin()}catch(e){cloudErr("Hernoemen",e)}
+  try{await cloudVelden(recs.map(r=>({id:r.id,velden:{bron:nieuw}})),(n,t)=>toast(`Bron aanpassen: ${n} van ${t}`));toast(`Bron hernoemd naar “${nieuw}”`);renderAdmin()}catch(e){cloudErr("Hernoemen",e)}
 }
 async function loadTrash(){
   const F=CLOUD.F,el=$("#a_trash");el.innerHTML='<p class="hint">Laden…</p>';
   try{const s=await F.getDocs(F.query(F.collection(CLOUD.db,"recipes"),F.where("deleted","==",true)));
-    const rows=[];s.forEach(d=>{const x=d.data();rows.push({id:d.id,titel:x.titel||d.id,upd:tsMs(x.updatedAt),by:x.updatedBy})});
+    const rows=[];s.forEach(d=>{const x=d.data();if(x.gewist)return;rows.push({id:d.id,titel:x.titel||d.id,upd:tsMs(x.updatedAt),by:x.updatedBy})});
     rows.sort((a,b)=>b.upd-a.upd);const names=CLOUD.userNames||{};
     el.innerHTML=rows.length?`<ul class="alist">${rows.map(r=>`<li><span class="lnk" style="cursor:default">${esc(r.titel)}</span><span class="sub">${esc(names[r.by]||"?")} · ${dtNL(r.upd)}</span>
       <button class="btn ghost" data-restore="${esc(r.id)}">Terugzetten</button><button class="btn ghost" data-purge="${esc(r.id)}" style="color:var(--warn)" aria-label="Definitief verwijderen">✕</button></li>`).join("")}</ul>`:'<p class="hint">De prullenbak is leeg.</p>';
     $$("#a_trash [data-restore]").forEach(b=>b.onclick=async()=>{
       try{await F.setDoc(F.doc(CLOUD.db,"recipes",b.dataset.restore),{deleted:false,updatedAt:F.serverTimestamp(),updatedBy:CLOUD.user.uid},{merge:true});toast("Teruggezet");loadTrash()}catch(e){cloudErr("Terugzetten",e)}});
     $$("#a_trash [data-purge]").forEach(b=>b.onclick=async()=>{
-      if(!confirm("Dit recept definitief verwijderen? Dit kan niet ongedaan worden gemaakt."))return;
-      try{await F.deleteDoc(F.doc(CLOUD.db,"recipes",b.dataset.purge));F.deleteDoc(F.doc(CLOUD.db,"photos",b.dataset.purge)).catch(()=>{});toast("Definitief verwijderd");loadTrash()}catch(e){cloudErr("Verwijderen",e)}});
+      if(!confirm("Dit recept definitief wissen? De inhoud verdwijnt en dit kan niet ongedaan worden gemaakt."))return;
+      const id=b.dataset.purge;
+      try{
+        // geen echte verwijdering: we laten een leeg document achter, zodat ook een toestel dat nu
+        // offline is het bericht later nog krijgt en het recept niet als spook blijft staan
+        await F.setDoc(F.doc(CLOUD.db,"recipes",id),{deleted:true,gewist:true,updatedAt:F.serverTimestamp(),updatedBy:CLOUD.user.uid});
+        F.setDoc(F.doc(CLOUD.db,"photos",id),{data:"",deleted:true,updatedAt:F.serverTimestamp(),updatedBy:CLOUD.user.uid}).catch(()=>{});
+        toast("Definitief gewist");loadTrash();
+      }catch(e){cloudErr("Wissen",e)}});
   }catch(e){el.innerHTML=`<p class="hint">Kon de prullenbak niet laden (${esc(e.code||e.message)}).</p>`}
 }
 async function adminBackup(){
   const datum=new Date().toISOString().slice(0,10);
-  const data={type:"receptenboek",versie:2,datum,herkomst:"back-up",extraRecepten:recList().map(toCloud),fotos:Object.fromEntries(photos),favorieten:[...favs]};
+  const data={type:"receptenboek",versie:2,datum,herkomst:"back-up",extraRecepten:recList().map(toCloud),fotos:Object.fromEntries(photos),favorieten:[...favs],gedeeld:plainObj(CLOUD.gedeeld||{})};
   const file=new File([JSON.stringify(data)],`recepten-backup-${datum}.json`,{type:"application/json"});
   const mb=(file.size/1048576).toFixed(file.size>10485760?0:1);
   // op de iPhone via het deelmenu, zodat je hem in Bestanden/iCloud Drive kunt bewaren
@@ -2693,6 +2803,30 @@ function checkBackupReminder(){
   $("#bklater").onclick=()=>{store.set("backupSnooze",nu+7*dag);$("#bkbar").hidden=true};
   $("#bknow").onclick=()=>{$("#bkbar").hidden=true;adminBackup()};
 }
+// ---------- eenmalig: oude notities en duimen naar de persoonlijke documenten ----------
+function oudeSporen(){return RECIPES.filter(r=>(r.notitie&&String(r.notitie).trim())||Object.values(r.duimen||{}).some(v=>v===true))}
+async function verhuisPersoonlijk(){
+  if(!CLOUD.isAdmin){toast("Alleen de beheerder kan dit");return}
+  const lijst=oudeSporen();
+  if(!lijst.length){toast("Er valt niets te verhuizen");return}
+  if(!confirm(`${lijst.length} recepten hebben nog een oude notitie of duim. Die worden verplaatst naar de persoonlijke documenten. Maak eerst een back-up. Doorgaan?`))return;
+  const F=CLOUD.F,perUid={};
+  lijst.forEach(r=>{
+    if(r.notitie&&String(r.notitie).trim()){
+      const u=mijnUid();perUid[u]=perUid[u]||{notities:{},likes:{}};perUid[u].notities[r.id]=r.notitie;
+    }
+    Object.entries(r.duimen||{}).forEach(([u,v])=>{if(v===true){perUid[u]=perUid[u]||{notities:{},likes:{}};perUid[u].likes[r.id]=true}});
+  });
+  try{
+    for(const [uid,d] of Object.entries(perUid)){
+      await F.setDoc(F.doc(CLOUD.db,"gedeeld",uid),{naam:naamUid(uid)||"",notities:d.notities,likes:d.likes,updatedAt:F.serverTimestamp()},{merge:true});
+      CLOUD.gedeeld[uid]={naam:naamUid(uid)||"",notities:{...(gedeeldVan(uid).notities||{}),...d.notities},likes:{...(gedeeldVan(uid).likes||{}),...d.likes}};
+    }
+    await cloudVelden(lijst.map(r=>({id:r.id,velden:{notitie:"",duimen:{}}})),(n,t)=>toast(`Verhuizen: ${n} van ${t}`));
+    toast(`${lijst.length} recepten verhuisd`);refreshAll();if($("#admin").classList.contains("open"))renderAdmin();
+  }catch(e){cloudErr("Verhuizen",e)}
+}
+
 // ---------- foto's van internet in de eigen database zetten ----------
 const webFotoRecs=()=>RECIPES.filter(r=>/^https?:\/\//i.test(r.foto||""));
 let fotoBusy=null;
@@ -2880,7 +3014,7 @@ function cardHTML(r){
         ${r.tijd?`<span class="tbadge">${ico("clock")} ${r.tijdGeschat?"± ":""}${esc(tijdTxt(r.tijd))}</span>`:""}
       </span>
       <span class="body"><h3>${esc(r.titel)}</h3>
-      <span class="meta"><span class="mtype">${esc(r.type||"")}</span>${bron?`<span class="mbron">${esc(bron)}</span>`:""}${duimCount(r)?`<span class="dbadge">${ico("thumb")}${duimCount(r)>1?duimCount(r):""}</span>`:""}${noteOf(r.id)?ico("note"):""}</span></span>
+      <span class="meta"><span class="mtype">${esc(r.type||"")}</span>${bron?`<span class="mbron">${esc(bron)}</span>`:""}${duimCount(r)?`<span class="dbadge">${ico("thumb")}${duimCount(r)>1?duimCount(r):""}</span>`:""}${heeftNotitie(r.id)?ico("note"):""}</span></span>
     </button>
     <button class="favbtn ${favs.has(r.id)?"on":""}" data-fav="${esc(r.id)}" aria-label="Favoriet">${ico("star")}</button>
   </div>`;
@@ -2946,9 +3080,15 @@ function renderFchips(){
 }
 
 // ---------- gezinsfavorieten (duimen) ----------
-const duimUids=r=>Object.entries((r&&r.duimen)||{}).filter(([,v])=>v===true).map(([u])=>u);
+const duimUids=r=>{
+  if(!r)return[];
+  const uit=Object.keys(CLOUD.gedeeld||{}).filter(uid=>((CLOUD.gedeeld[uid].likes)||{})[r.id]===true);
+  // duimen van vóór de verhuizing
+  Object.entries((r.duimen)||{}).forEach(([u,v])=>{if(v===true&&!uit.includes(u))uit.push(u)});
+  return uit;
+};
 const duimCount=r=>duimUids(r).length;
-const ikDuim=r=>!!(CLOUD.user&&(r.duimen||{})[CLOUD.user.uid]===true);
+const ikDuim=r=>!!(CLOUD.user&&duimUids(r).includes(CLOUD.user.uid));
 function duimTekst(r){
   const mij=(CLOUD.user||{}).uid;
   const ik=duimUids(r).includes(mij);
@@ -2961,12 +3101,12 @@ function duimTekst(r){
 }
 function toggleDuim(id){
   if(!CLOUD.on||!CLOUD.user){toast("Werkt alleen als je bent ingelogd");return}
-  const F=CLOUD.F,uid=CLOUD.user.uid,r=byId(id);if(!r)return;
+  const F=CLOUD.F,uid=mijnUid(),r=byId(id);if(!r)return;
   const nieuw=!ikDuim(r);
-  const kopie={...r,duimen:{...(r.duimen||{}),[uid]:nieuw}};
-  CLOUD.cache.set(id,plainObj(kopie));persistCache();
-  cloudWrite(F.setDoc(F.doc(CLOUD.db,"recipes",id),{duimen:{[uid]:nieuw},updatedAt:F.serverTimestamp(),updatedBy:uid},{merge:true}),"Lekker-knop");
-  refreshAll();if(cur&&cur.r.id===id){cur.r=byId(id)||kopie;renderDetail()}
+  const g=CLOUD.gedeeld[uid]=CLOUD.gedeeld[uid]||{naam:CLOUD.naam,notities:{},likes:{}};
+  g.likes=g.likes||{};g.likes[id]=nieuw;
+  cloudWrite(F.setDoc(F.doc(CLOUD.db,"gedeeld",uid),{naam:CLOUD.naam,likes:{[id]:nieuw},updatedAt:F.serverTimestamp()},{merge:true}),"Lekker-knop");
+  refreshAll();if(cur&&cur.r.id===id){cur.r=byId(id)||r;renderDetail()}
 }
 
 // ---------- detail ----------
@@ -3019,12 +3159,20 @@ function renderDetail(){
         <ol class="steps">${steps}</ol>
         <p class="hint">${cookOn?"Het scherm blijft aan. Tik op een timerknop om hem te starten, en op een stap om hem af te vinken.":"Tik op een stap om hem af te vinken. Kookmodus: grotere tekst, scherm blijft aan en timers."}</p>
       </div>
-      <div class="box" id="dnotesbox"><h4>${ico("note")} Mijn notities <span class="saved" id="nsaved">Opgeslagen ✓</span></h4>
-        <textarea class="notes" id="dnotes" placeholder="Bijv. minder zout, 5 min langer in de oven, lekker met rijst…">${esc(noteOf(r.id))}</textarea>
+      <div class="box" id="dnotesbox"><h4>${ico("note")} Notities <span class="saved" id="nsaved">Opgeslagen ✓</span></h4>
+        <textarea class="notes" id="dnotes" placeholder="Jouw notitie, bijv. minder zout, 5 min langer in de oven…">${esc((gedeeldVan(mijnUid()).notities||{})[r.id]||"")}</textarea>
+        ${notitiesVan(r.id).filter(n=>n.uid!==mijnUid()).map(n=>`<div class="andernot"><b>${esc(n.naam)}</b>${CLOUD.isAdmin?`<button class="x" data-notedel="${esc(n.uid)}" aria-label="Notitie van ${esc(n.naam)} verwijderen">✕</button>`:""}<span>${esc(n.tekst)}</span></div>`).join("")}
       </div>
     </div>`;
   $("#dshare").onclick=()=>shareRecipe(r,cur.p);
   $("#ddu").onclick=()=>toggleDuim(r.id);
+  $$("#detail [data-notedel]").forEach(b=>b.onclick=()=>{
+    const uid=b.dataset.notedel;
+    if(!confirm(`Notitie van ${naamUid(uid)||"dit gezinslid"} verwijderen?`))return;
+    if(uid)setNote(r.id,"",uid);
+    else{const c=CLOUD.cache.get(r.id);if(c){c.notitie="";persistCache();cloudUpdate(r.id,{notitie:""})}}
+    setTimeout(renderDetail,80);
+  });
   $("#dphoto").onclick=()=>{$("#photoFile").value="";$("#photoFile").click()};
   if($("#dphotodel"))$("#dphotodel").onclick=()=>{if(confirm("Eigen foto verwijderen?")){pdb.del(r.id);if(CLOUD.on)cloudSavePhoto(r.id,"");renderDetail();renderList();renderFavs()}};
   let nt;const ta=$("#dnotes");
@@ -3353,7 +3501,7 @@ async function schatTijden(){
       if(w>=30&&!(n.tags||[]).some(g=>/^⏱/.test(g)))n.tags=[...(n.tags||[]),"⏱ + "+tijdTxt(w)+" wachten"];
       if(n.origineel&&!n.origineel.tijd)n.origineel={...n.origineel,tijd:t};
       upd.push(n)}
-    if(upd.length){try{await cloudBulk(upd)}catch(e){fout=e;break}}
+    if(upd.length){try{await cloudVelden(upd.map(n2=>({id:n2.id,velden:{tijd:n2.tijd,tijdGeschat:true,...(n2.tags?{tags:n2.tags}:{}),...(n2.origineel?{origineel:n2.origineel}:{})}})))}catch(e){fout=e;break}}
     klaar+=deel.length;say(`Bezig: ${klaar} van ${todo.length} recepten bekeken…`);
     await sleep(1500);
   }
@@ -3517,7 +3665,12 @@ function openEditor(r){
 function closeEditor(){$("#editor").classList.remove("open");$("#editor").innerHTML="";ed=null;if(!cur)document.body.style.overflow=""}
 function refreshAll(){RECIPES=allRecipes();renderTypes();renderBronnen();renderDoorsel();renderList();renderFavs();updateBadge()}
 function saveExtra(rec){
-  if(CLOUD.on){cloudSaveRecipe(rec);refreshAll();return}
+  if(CLOUD.on){
+    if(CLOUD.cache.has(rec.id)){
+      const velden={};EDITVELDEN.forEach(k=>{if(rec[k]!==undefined)velden[k]=rec[k]});
+      cloudUpdate(rec.id,velden);
+    }else cloudSaveRecipe(rec);
+    refreshAll();return}
   const extra=store.get("extra",[]).filter(x=>x.id!==rec.id);extra.push(rec);store.set("extra",extra);refreshAll();
 }
 function removeExtra(id){if(CLOUD.on){cloudDeleteRecipe(id);refreshAll();return}store.set("extra",store.get("extra",[]).filter(x=>x.id!==id));refreshAll()}
@@ -3710,8 +3863,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.23", APP_DATE="2026-09-24";
-const APP_LOG=["Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.25", APP_DATE="2026-09-24";
+const APP_LOG=["Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
@@ -3806,7 +3959,8 @@ function printHTML(list,opt,titel){
     const st=(r.stappen||[]).map(x=>`<li>${esc(x)}</li>`).join("");
     const meta=[r.type,r.tijd?(r.tijdGeschat?"± ":"")+tijdTxt(r.tijd):"",r.porties?r.porties+" porties":"",
       (r.bron||"").trim()?"bron: "+r.bron:"",naamUid(r._cby)?"toegevoegd door "+naamUid(r._cby):""].filter(Boolean).map(esc).join(" · ");
-    const not=opt.notities&&noteOf(r.id)?`<div class="pb-not"><b>Notitie:</b> ${esc(noteOf(r.id))}</div>`:"";
+    const nots=opt.notities?notitiesVan(r.id):[];
+    const not=nots.length?nots.map(n=>`<div class="pb-not"><b>${esc(n.naam)}:</b> ${esc(n.tekst)}</div>`).join(""):"";
     const ben=(r.benodigdheden||[]).length?`<p class="pb-ben"><b>Benodigdheden:</b> ${esc(r.benodigdheden.join(", "))}</p>`:"";
     return `<section class="pb-r"><h2>${esc(r.titel)}</h2><p class="pmeta">${meta}</p>
       ${f?`<img src="${esc(f)}" alt="">`:""}
@@ -3838,7 +3992,7 @@ function maakKookboek(){
 // ---------- beheer ----------
 function renderBeheer(){
   renderPdfSel();
-  const n=RECIPES.filter(r=>noteOf(r.id)).length;
+  const n=RECIPES.filter(r=>heeftNotitie(r.id)).length;
   $("#dbinfo").textContent=`${RECIPES.length} recepten · ${favs.size} favorieten · ${n} met notities · ${photos.size} foto${photos.size===1?"":"'s"} in de database.`;
 }
 // Recepten van buiten (import) netjes maken: ingrediënten mogen ook gewone tekstregels zijn
@@ -3862,6 +4016,13 @@ function importData(obj){
     else{
       recs=obj.extraRecepten||obj.recepten||[];
       if(obj.notities&&!CLOUD.on)Object.entries(obj.notities).forEach(([id,t])=>{if(t&&!notes[id]){notes[id]=t;nNotes++}});
+      // notities en duimen uit een back-up terugzetten (alleen de beheerder mag die van anderen schrijven)
+      if(obj.gedeeld&&CLOUD.on&&CLOUD.user)Object.entries(obj.gedeeld).forEach(([uid,d])=>{
+        if(!d||(uid!==mijnUid()&&!CLOUD.isAdmin))return;
+        const F=CLOUD.F;nNotes+=Object.values(d.notities||{}).filter(t=>String(t||"").trim()).length;
+        CLOUD.gedeeld[uid]={naam:d.naam||naamUid(uid)||"",notities:{...(gedeeldVan(uid).notities||{}),...(d.notities||{})},likes:{...(gedeeldVan(uid).likes||{}),...(d.likes||{})}};
+        cloudWrite(F.setDoc(F.doc(CLOUD.db,"gedeeld",uid),{naam:CLOUD.gedeeld[uid].naam,notities:d.notities||{},likes:d.likes||{},updatedAt:F.serverTimestamp()},{merge:true}),"Notities terugzetten");
+      });
       if(obj.fotos)Object.entries(obj.fotos).forEach(([id,d])=>{if(typeof d==="string"&&d.startsWith("data:image/")&&!photos.has(id)){pdb.put(id,d);if(CLOUD.on)cloudSavePhoto(id,d);nPhotos++}});
       if(Array.isArray(obj.favorieten))obj.favorieten.forEach(id=>favs.add(id));
       store.set("notes",notes);store.set("favs",[...favs]);
@@ -3891,7 +4052,7 @@ $("#importFile").onchange=async e=>{
 function bookData(){
   // Ingebouwde recepten zitten al in de app van de ontvanger; alleen de eigen/geïmporteerde recepten gaan mee
   return {type:"receptenboek",versie:2,datum:new Date().toISOString().slice(0,10),
-    extraRecepten:recList(),favorieten:[...favs],notities:Object.fromEntries(RECIPES.filter(r=>noteOf(r.id)).map(r=>[r.id,noteOf(r.id)])),fotos:Object.fromEntries(photos),boodschappen:shop};
+    extraRecepten:recList(),favorieten:[...favs],notities:Object.fromEntries(RECIPES.filter(r=>noteOf(r.id)).map(r=>[r.id,noteOf(r.id)])),gedeeld:plainObj(CLOUD.gedeeld||{}),fotos:Object.fromEntries(photos),boodschappen:shop};
 }
 function bookFile(){return new File([JSON.stringify(bookData())],"receptenboek.json",{type:"application/json"})}
 function download(file){const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove()}
