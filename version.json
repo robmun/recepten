@@ -1,8 +1,7 @@
 {
-  "version": "26.9.20",
+  "version": "26.9.21",
   "datum": "2026-09-24",
   "notities": [
-    "Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht",
-    "Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem"
+    "Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen"
   ]
 }
