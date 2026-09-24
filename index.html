@@ -3530,10 +3530,17 @@ function saveShop(){store.set("shop",shop);updateBadge();savePrivate()}
 function sleepLijst(ul,alle){
   if(!ul)return;
   let li=null,startY=0,bewogen=false,gekozen=null;
-  const bewaar=()=>{
-    const opScherm=[...ul.children].map(x=>x.dataset.naam);
-    const rest=alle.map(i=>i.n).filter(n=>!opScherm.includes(n));
-    zetVolgorde(opScherm.concat(rest));
+  // alleen het verplaatste product krijgt een nieuwe plek; alles wat niet op het scherm staat
+  // (bijv. afgevinkt en verborgen) houdt gewoon zijn eigen plaats in de volgorde
+  const bewaar=(rij)=>{
+    const naam=rij&&rij.dataset.naam;if(!naam)return;
+    const kinderen=[...ul.children];
+    const i=kinderen.indexOf(rij);
+    const boven=i>0?kinderen[i-1].dataset.naam:null;
+    const volle=alle.map(x=>x.n).filter(n=>n!==naam);
+    const pos=boven?volle.indexOf(boven)+1:0;
+    volle.splice(pos<0?volle.length:pos,0,naam);
+    zetVolgorde(volle);
     toast("Volgorde onthouden");
   };
   const over=(x,y)=>{
@@ -3546,8 +3553,8 @@ function sleepLijst(ul,alle){
   };
   const stop=(opslaan)=>{
     if(!li)return;
-    li.classList.remove("dragging");li=null;
-    if(opslaan)bewaar();
+    const rij=li;li.classList.remove("dragging");li=null;
+    if(opslaan)bewaar(rij);
   };
   // tikken in plaats van slepen: eerst een regel oppakken, dan de plek aantikken
   const kiesUit=()=>{if(gekozen){gekozen.classList.remove("gekozen");gekozen=null}ul.classList.remove("verplaatsen")};
@@ -3558,8 +3565,9 @@ function sleepLijst(ul,alle){
     const rij=e.target.closest("li");if(!rij||rij===gekozen)return;
     e.preventDefault();e.stopPropagation();
     const r=rij.getBoundingClientRect();
-    ul.insertBefore(gekozen,e.clientY<r.top+r.height/2?rij:rij.nextSibling);
-    kiesUit();bewaar();
+    const verplaatst=gekozen;
+    ul.insertBefore(verplaatst,e.clientY<r.top+r.height/2?rij:rij.nextSibling);
+    kiesUit();bewaar(verplaatst);
   },true);
 
   ul.querySelectorAll("[data-drag]").forEach(h=>{
@@ -3702,8 +3710,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.22", APP_DATE="2026-09-24";
-const APP_LOG=["Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.23", APP_DATE="2026-09-24";
+const APP_LOG=["Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
