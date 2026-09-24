@@ -156,6 +156,11 @@ body.hastimer #detail .wrap, body.hastimer main.wrap{padding-bottom:120px}
 .shop input[type=checkbox]{width:24px; height:24px; accent-color:var(--accent)}
 .shop li.have span{text-decoration:line-through; color:var(--muted)}
 .shop .src{font-size:.72rem; color:var(--muted); display:block}
+.shop li{align-items:center}
+.grip{border:none; background:none; color:var(--muted); padding:6px 2px 6px 10px; touch-action:none; cursor:grab; flex:0 0 auto}
+.grip svg{width:20px; height:20px; stroke-width:2}
+.shop li.dragging{background:var(--accent-soft); border-radius:10px; opacity:.85}
+.lnk{border:none; background:none; color:var(--accent); font:inherit; text-decoration:underline; padding:0; cursor:pointer}
 .shoprecipes{display:flex; flex-direction:column; gap:6px}
 .shoprecipes div{display:flex; justify-content:space-between; align-items:center; font-size:.88rem}
 .x{border:none; background:none; color:var(--warn); font-size:1rem; padding:4px 8px}
@@ -374,6 +379,12 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 <section class="page" id="p-boodschappen">
   <header class="top"><div class="wrap"><h1>Boodschappenlijst
     <button class="chip" id="hideHave">Verberg wat ik heb</button></h1></div></header>
+  <div class="wrap" style="padding-top:10px"><form class="search" id="shopadd">
+    <input id="shopnew" type="text" placeholder="Zelf toevoegen, bijv. 2 l melk…" autocomplete="off" list="eerderlist" enterkeyhint="done">
+    <datalist id="eerderlist"></datalist>
+    <button class="btn" type="submit" style="width:auto;flex:0 0 auto"><svg class="bi"><use href="#i-plus"/></svg></button>
+  </form>
+  <div class="chips" id="vaak"></div></div>
   <main class="wrap" id="shopwrap"></main>
 </section>
 
@@ -485,6 +496,7 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
 <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5"/></symbol>
 <symbol id="i-tools" viewBox="0 0 24 24"><path d="M14.5 6.8a3.6 3.6 0 0 1 4.8-3.4l-2.4 2.4 1.8 1.8 2.4-2.4a3.6 3.6 0 0 1-4.7 4.8L6.9 19.5a1.9 1.9 0 0 1-2.7-2.7l9.5-9.5a3.6 3.6 0 0 1 .8-.5z"/></symbol>
 <symbol id="i-undo" viewBox="0 0 24 24"><path d="M4 9.5h7.5A5.5 5.5 0 1 1 11.5 20.5H7M4 9.5 8 5.5M4 9.5l4 4"/></symbol>
+<symbol id="i-drag" viewBox="0 0 24 24"><path d="M5 9h14M5 15h14"/></symbol>
 <symbol id="i-thumb" viewBox="0 0 24 24"><path d="M7 10.5 11 3a2.2 2.2 0 0 1 2.2 2.2V9.5h4.3a2 2 0 0 1 2 2.4l-1.2 6a2 2 0 0 1-2 1.6H7z"/><path d="M7 10.5v9H4.5v-9z"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15M9.5 6.5V4h5v2.5M6.5 6.5 7.5 20h9l1-13.5M10 10v6.5M14 10v6.5"/></symbol>
 </defs></svg>
@@ -2776,7 +2788,7 @@ async function shareOrCopy({title,text,url}){
   const t=[text,url].filter(Boolean).join("\n");
   try{await navigator.clipboard.writeText(t);toast("Gekopieerd — plak het in een bericht")}catch(e){prompt("Kopieer en deel:",t)}
 }
-let shop=store.get("shop",{recipes:[],have:[]}); // recipes:[{id,porties}], have:[key]
+let shop=store.get("shop",{recipes:[],have:[]}); // recipes:[{id,porties}], have:[key], los:[{n,q,u}], volgorde:{}
 let state={type:"",q:"",max:"",sort:"az",bron:"",door:"",hideHave:store.get("hideHave",false)};
 
 // ---------- zoom / thema ----------
@@ -3510,13 +3522,91 @@ $("#addRecipe2").onclick=()=>openEditor(null);
 
 // ---------- boodschappen ----------
 function saveShop(){store.set("shop",shop);updateBadge();savePrivate()}
+// slepen met de vinger of de muis; bij loslaten onthouden we de nieuwe volgorde
+function sleepLijst(ul,alle){
+  if(!ul)return;
+  let li=null,pid=null;
+  const stop=()=>{if(li){li.classList.remove("dragging");li=null}};
+  ul.querySelectorAll("[data-drag]").forEach(h=>{
+    h.onpointerdown=e=>{
+      e.preventDefault();li=h.closest("li");pid=e.pointerId;li.classList.add("dragging");
+      try{h.setPointerCapture(pid)}catch(err){}
+    };
+    h.onpointermove=e=>{
+      if(!li)return;e.preventDefault();
+      const el=document.elementFromPoint(e.clientX,e.clientY);
+      const over=el&&el.closest&&el.closest("#shoplist li");
+      if(!over||over===li||over.parentNode!==ul)return;
+      const r=over.getBoundingClientRect();
+      ul.insertBefore(li,e.clientY<r.top+r.height/2?over:over.nextSibling);
+    };
+    const klaar=()=>{
+      if(!li)return;
+      li.classList.remove("dragging");li=null;
+      // zichtbare volgorde op het scherm, aangevuld met de producten die verborgen zijn ("al in huis")
+      const opScherm=[...ul.children].map(x=>x.dataset.naam);
+      const rest=alle.map(i=>i.n).filter(n=>!opScherm.includes(n));
+      zetVolgorde(opScherm.concat(rest));
+      toast("Volgorde onthouden");
+    };
+    h.onpointerup=klaar;h.onpointercancel=klaar;h.onlostpointercapture=klaar;
+  });
+}
+$("#shopadd").onsubmit=e=>{
+  e.preventDefault();
+  const v=$("#shopnew").value.trim();if(!v)return;
+  const i=parseIng(v);if(!i||!i.n){toast("Kon dit niet lezen");return}
+  voegLosToe(i.n,i.q,i.u);
+  $("#shopnew").value="";$("#shopnew").focus();
+};
+function renderVaak(){
+  const el=$("#vaak");if(!el)return;
+  const top=eerderTop(12);
+  el.innerHTML=top.length?`<span class="hint" style="align-self:center;margin:0 4px 0 0;flex:0 0 auto">Eerder gekocht:</span>`+
+    top.map(x=>`<button class="chip" data-vaak="${esc(x.n)}">+ ${esc(x.n)}</button>`).join(""):"";
+  $$("#vaak [data-vaak]").forEach(b=>b.onclick=()=>{const x=(shop.eerder||[]).find(y=>y.n===b.dataset.vaak)||{};voegLosToe(b.dataset.vaak,null,x.u)});
+  const dl=$("#eerderlist");
+  if(dl)dl.innerHTML=(shop.eerder||[]).sort((a,b)=>(b.keer||0)-(a.keer||0)).slice(0,200).map(x=>`<option value="${esc(x.n)}">`).join("");
+}
 function addToShop(id,p){
   const e=shop.recipes.find(x=>x.id===id);
   if(e)e.porties=p;else shop.recipes.push({id,porties:p});
   saveShop();renderShop();toast("Toegevoegd aan boodschappenlijst");
 }
+// jouw eigen volgorde in de winkel: per product onthouden we een rangnummer
+const rangKey=n=>norm(n).replace(/\s+/g," ").trim();
+function rangVan(n){const r=(shop.volgorde||{})[rangKey(n)];return typeof r==="number"?r:Infinity}
+function zetVolgorde(namen){
+  const v={};namen.forEach((n,i)=>{v[rangKey(n)]=i+1});
+  shop.volgorde={...(shop.volgorde||{}),...v};
+  saveShop();
+}
+// producten die je eerder kocht of zelf toevoegde, om te kunnen hergebruiken
+function onthoud(n,u){
+  const k=rangKey(n);if(!k)return;
+  const lijst=shop.eerder||(shop.eerder=[]);
+  const b=lijst.find(x=>rangKey(x.n)===k);
+  if(b){b.keer=(b.keer||1)+1;b.laatst=Date.now();if(u)b.u=u}
+  else lijst.push({n,u:u||"",keer:1,laatst:Date.now()});
+  if(lijst.length>400)lijst.sort((a,b2)=>(b2.keer||0)-(a.keer||0)||(b2.laatst||0)-(a.laatst||0)).splice(300);
+}
+const eerderTop=(n=10)=>{
+  const op=new Set(aggregate().map(i=>rangKey(i.n)));
+  return (shop.eerder||[]).filter(x=>!op.has(rangKey(x.n)))
+    .sort((a,b)=>(b.keer||0)-(a.keer||0)||(b.laatst||0)-(a.laatst||0)).slice(0,n);
+};
+function voegLosToe(n,q,u){
+  shop.los=[...(shop.los||[]),{n,q:q==null?null:q,u:u||""}];
+  onthoud(n,u);saveShop();renderShop();
+}
 function aggregate(){
   const map=new Map();
+  // losse boodschappen die niet bij een recept horen
+  (shop.los||[]).forEach(i=>{
+    const key=norm(i.n)+"|"+(i.u||"");
+    if(!map.has(key))map.set(key,{key,n:i.n,u:i.u||"",q:0,noq:false,los:true,src:new Set()});
+    const m=map.get(key);m.los=true;if(i.q==null)m.noq=true;else m.q+=i.q;
+  });
   shop.recipes.forEach(({id,porties})=>{
     const r=byId(id);if(!r)return;const f=porties/(r.porties||1);
     (r.ingredienten||[]).forEach(i=>{
@@ -3525,7 +3615,8 @@ function aggregate(){
       const m=map.get(key);if(i.q==null)m.noq=true;else m.q+=i.q*f;m.src.add(r.titel);
     });
   });
-  return [...map.values()].sort((a,b)=>a.n.localeCompare(b.n,"nl"));
+  // eerst op jouw eigen volgorde, daarna alfabetisch voor nieuwe producten
+  return [...map.values()].sort((a,b)=>(rangVan(a.n)-rangVan(b.n))||a.n.localeCompare(b.n,"nl"));
 }
 function updateBadge(){
   const have=new Set(shop.have);const n=aggregate().filter(i=>!have.has(i.key)).length;
@@ -3534,17 +3625,25 @@ function updateBadge(){
 function renderShop(){
   const items=aggregate(), have=new Set(shop.have);
   $("#hideHave").classList.toggle("on",state.hideHave);
-  if(!shop.recipes.length){$("#shopwrap").innerHTML=`<div class="empty">Je lijst is leeg.<br>Open een recept en tik op “Op boodschappenlijst”.</div>`;updateBadge();return}
+  if(!shop.recipes.length&&!(shop.los||[]).length){$("#shopwrap").innerHTML=`<div class="empty">Je lijst is leeg.<br>Typ hierboven zelf iets, tik op een eerder gekocht product, of open een recept en tik op “Op boodschappenlijst”.</div>`;renderVaak();updateBadge();return}
   const vis=items.filter(i=>!(state.hideHave&&have.has(i.key)));
   $("#shopwrap").innerHTML=`
-    <div class="box"><h4>Recepten op de lijst</h4><div class="shoprecipes">${shop.recipes.map(x=>{const r=byId(x.id);return r?`<div><span>${esc(r.titel)} · ${x.porties} p.</span><button class="x" data-rm="${esc(x.id)}" aria-label="Verwijder">✕</button></div>`:""}).join("")}</div></div>
+    ${shop.recipes.length?`<div class="box"><h4>Recepten op de lijst</h4><div class="shoprecipes">${shop.recipes.map(x=>{const r=byId(x.id);return r?`<div><span>${esc(r.titel)} · ${x.porties} p.</span><button class="x" data-rm="${esc(x.id)}" aria-label="Verwijder">✕</button></div>`:""}).join("")}</div></div>`:""}
     <p class="hint">Vink aan wat je al in huis hebt. ${have.size?`(${items.filter(i=>have.has(i.key)).length} van ${items.length} al in huis)`:""}</p>
-    <ul class="ing shop">${vis.map(i=>`<li class="${have.has(i.key)?"have":""}"><label><input type="checkbox" data-have="${esc(i.key)}" ${have.has(i.key)?"checked":""}>
-      <span><b>${esc((i.q?fmt(i.q)+(i.u?" "+i.u:""):"")+(i.noq&&i.q?" +":""))}</b> ${esc(i.n)}<span class="src">${esc([...i.src].join(", "))}</span></span></label></li>`).join("")}</ul>
+    <ul class="ing shop" id="shoplist">${vis.map(i=>`<li class="${have.has(i.key)?"have":""}" data-key="${esc(i.key)}" data-naam="${esc(i.n)}"><label><input type="checkbox" data-have="${esc(i.key)}" ${have.has(i.key)?"checked":""}>
+      <span><b>${esc((i.q?fmt(i.q)+(i.u?" "+i.u:""):"")+(i.noq&&i.q?" +":""))}</b> ${esc(i.n)}<span class="src">${esc([...i.src].join(", "))||"zelf toegevoegd"}</span></span></label>${i.los&&!i.src.size?`<button class="x" data-los="${esc(i.n)}" aria-label="Verwijder ${esc(i.n)}">✕</button>`:""}<button class="grip" data-drag aria-label="Versleep ${esc(i.n)}">${ico("drag")}</button></li>`).join("")}</ul>
+    <p class="hint">Sleep met ${ico("drag")} om de volgorde te veranderen; de app onthoudt jouw volgorde voor de volgende keer.${Object.keys(shop.volgorde||{}).length?` <button class="lnk" id="resetVolgorde">Volgorde vergeten</button>`:""}</p>
     <div class="row" style="margin:16px 0"><button class="btn ghost" id="copyShop" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M8 9H6.5A1.5 1.5 0 0 0 5 10.5v9A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 17.5 9H16"/><path d="M12 14V3"/><path d="M8.5 6.5 12 3l3.5 3.5"/></svg>Deel lijst</button><button class="btn ghost" id="clearShop" style="flex:1;color:var(--warn)">Lijst leegmaken</button></div>`;
   $$("[data-rm]").forEach(b=>b.onclick=()=>{shop.recipes=shop.recipes.filter(x=>x.id!==b.dataset.rm);saveShop();renderShop()});
-  $$("[data-have]").forEach(c=>c.onchange=()=>{const k=c.dataset.have;const s=new Set(shop.have);c.checked?s.add(k):s.delete(k);shop.have=[...s];saveShop();renderShop()});
-  $("#clearShop").onclick=()=>{if(confirm("Boodschappenlijst leegmaken?")){shop={recipes:[],have:[]};saveShop();renderShop()}};
+  $$("[data-los]").forEach(b=>b.onclick=()=>{shop.los=(shop.los||[]).filter(x=>x.n!==b.dataset.los);saveShop();renderShop()});
+  $$("[data-have]").forEach(c=>c.onchange=()=>{const k=c.dataset.have;const s=new Set(shop.have);
+    if(c.checked){s.add(k);const it=items.find(i=>i.key===k);if(it)onthoud(it.n,it.u)}else s.delete(k);
+    shop.have=[...s];saveShop();renderShop()});
+  sleepLijst($("#shoplist"),items);
+  renderVaak();
+  if($("#resetVolgorde"))$("#resetVolgorde").onclick=()=>{if(!confirm("Jouw volgorde in de winkel vergeten? De lijst staat daarna weer op alfabet."))return;
+    shop.volgorde={};saveShop();renderShop();toast("Volgorde gewist")};
+  $("#clearShop").onclick=()=>{if(confirm("Boodschappenlijst leegmaken?")){shop={recipes:[],have:[],los:[],volgorde:shop.volgorde||{},eerder:shop.eerder||[]};saveShop();renderShop()}};
   $("#copyShop").onclick=()=>{
     const txt=items.filter(i=>!have.has(i.key)).map(i=>"- "+(i.q?fmt(i.q)+(i.u?" "+i.u:"")+" ":"")+i.n).join("\n");
     shareOrCopy({title:"Boodschappenlijst",text:"Boodschappenlijst\n"+txt});
@@ -3555,8 +3654,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.19", APP_DATE="2026-09-23";
-const APP_LOG=["Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.20", APP_DATE="2026-09-24";
+const APP_LOG=["Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
