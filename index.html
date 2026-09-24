@@ -157,10 +157,11 @@ body.hastimer #detail .wrap, body.hastimer main.wrap{padding-bottom:120px}
 .shop li.have span{text-decoration:line-through; color:var(--muted)}
 .shop .src{font-size:.72rem; color:var(--muted); display:block}
 .shop li{align-items:center}
+.chip.weg{background:var(--warn); color:#fff; border-color:var(--warn)}
 .grip{border:none; background:none; color:var(--muted); padding:12px 6px 12px 14px; touch-action:none; -webkit-user-select:none; user-select:none; cursor:grab; flex:0 0 auto; min-width:44px; min-height:44px; display:grid; place-items:center}
 .grip svg{width:22px; height:22px; stroke-width:2; pointer-events:none}
-.shop li.dragging{background:var(--accent-soft); border-radius:10px; opacity:.9}
-.shop li.gekozen{background:var(--accent-soft); border-radius:10px; outline:2px solid var(--accent)}
+.shop li.dragging, .shop li.gekozen{background:var(--accent-soft); border-radius:12px; outline:2.5px solid var(--accent); outline-offset:-1px; box-shadow:0 6px 18px rgba(0,0,0,.18); position:relative; z-index:2}
+.shop li.dragging .grip, .shop li.gekozen .grip{color:var(--accent)}
 .shop.verplaatsen li:not(.gekozen){cursor:pointer}
 .shop.verplaatsen li:not(.gekozen):hover{background:var(--line); border-radius:10px}
 .lnk{border:none; background:none; color:var(--accent); font:inherit; text-decoration:underline; padding:0; cursor:pointer}
@@ -3600,12 +3601,18 @@ $("#shopadd").onsubmit=e=>{
   voegLosToe(i.n,i.q,i.u);
   $("#shopnew").value="";$("#shopnew").focus();
 };
+let vaakOpruimen=false;
 function renderVaak(){
   const el=$("#vaak");if(!el)return;
-  const top=eerderTop(12);
+  const top=eerderTop(vaakOpruimen?40:12);
   el.innerHTML=top.length?`<span class="hint" style="align-self:center;margin:0 4px 0 0;flex:0 0 auto">Eerder gekocht:</span>`+
-    top.map(x=>`<button class="chip" data-vaak="${esc(x.n)}">+ ${esc(x.n)}</button>`).join(""):"";
-  $$("#vaak [data-vaak]").forEach(b=>b.onclick=()=>{const x=(shop.eerder||[]).find(y=>y.n===b.dataset.vaak)||{};voegLosToe(b.dataset.vaak,null,x.u)});
+    top.map(x=>`<button class="chip ${vaakOpruimen?"weg":""}" data-vaak="${esc(x.n)}">${vaakOpruimen?"✕ ":"+ "}${esc(x.n)}</button>`).join("")+
+    `<button class="chip" id="vaakEdit" style="color:var(--muted)">${vaakOpruimen?"Klaar":"Opruimen"}</button>`:"";
+  $$("#vaak [data-vaak]").forEach(b=>b.onclick=()=>{
+    const naam=b.dataset.vaak;
+    if(vaakOpruimen){shop.eerder=(shop.eerder||[]).filter(y=>y.n!==naam);saveShop();renderVaak();toast(naam+" verwijderd uit de suggesties");return}
+    const x=(shop.eerder||[]).find(y=>y.n===naam)||{};voegLosToe(naam,null,x.u)});
+  if($("#vaakEdit"))$("#vaakEdit").onclick=()=>{vaakOpruimen=!vaakOpruimen;renderVaak()};
   const dl=$("#eerderlist");
   if(dl)dl.innerHTML=(shop.eerder||[]).slice().sort((a,b)=>(b.keer||0)-(a.keer||0)).slice(0,200).map(x=>`<option value="${esc(x.n)}">`).join("");
 }
@@ -3695,8 +3702,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.21", APP_DATE="2026-09-24";
-const APP_LOG=["Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.22", APP_DATE="2026-09-24";
+const APP_LOG=["Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};

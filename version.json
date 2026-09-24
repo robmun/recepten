@@ -1,7 +1,8 @@
 {
-  "version": "26.9.21",
+  "version": "26.9.22",
   "datum": "2026-09-24",
   "notities": [
-    "Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen"
+    "Boodschappenlijst: opgepakte regel krijgt een duidelijke rand",
+    "Eerder gekochte producten kun je opruimen"
   ]
 }
