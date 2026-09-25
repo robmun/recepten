@@ -1,9 +1,9 @@
 {
-  "version": "26.9.25",
-  "datum": "2026-09-24",
+  "version": "26.9.26",
+  "datum": "2026-09-25",
   "notities": [
-    "Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander",
-    "Duimen en notities staan los van het recept",
-    "Opslaan van een recept raakt alleen de receptvelden"
+    "Zoeken op ingrediënten, met “je mist nog één ding”",
+    "Filter op labels zoals Vegetarisch",
+    "Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent"
   ]
 }
