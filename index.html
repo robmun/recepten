@@ -210,6 +210,11 @@ body.hasupd header.top{top:58px}
 .stat{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 6px; text-align:center}
 .stat b{display:block; font-size:1.3rem; color:var(--accent)}
 .stat span{font-size:.72rem; color:var(--muted)}
+.fgroep{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px}
+.fkaart{display:flex; flex-direction:column; gap:6px; font-size:.85rem; justify-content:flex-start}
+.fkaart .btn{margin-top:auto}
+.fkaart img{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:var(--accent-soft)}
+.fkaart .btn{padding:8px 10px; font-size:.8rem}
 .alist{list-style:none; margin:6px 0 0; padding:0}
 .alist li{display:flex; gap:8px; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:.88rem}
 .alist li:last-child{border-bottom:none}
@@ -2699,6 +2704,15 @@ function openAdmin(){$("#admin").classList.add("open");$("#admin").scrollTop=0;d
 function closeAdmin(){$("#admin").classList.remove("open");$("#admin").innerHTML="";if(!cur)document.body.style.overflow=""}
 const recLink=r=>`<button class="lnk" data-aopen="${esc(r.id)}">${esc(r.titel)}</button>`;
 function adminList(recs,extra){return recs.length?`<ul class="alist">${recs.slice(0,200).map(r=>`<li>${recLink(r)}${extra?`<span class="sub">${extra(r)}</span>`:""}</li>`).join("")}</ul>${recs.length>200?`<p class="hint">… en nog ${recs.length-200}</p>`:""}`:'<p class="hint">Niets gevonden 👍</p>'}
+// twee recepten met hetzelfde fotobestand: bij de bron komt dat voor, en dan klopt er één niet
+function fotoSleutel(r){
+  const u=safeImg(r.foto);if(!u||/^data:/.test(u))return "";
+  return u.split("/").pop().replace(/^[0-9a-f-]{20,40}-/i,"").toLowerCase();
+}
+function dubbeleFotos(){
+  const per={};RECIPES.forEach(r=>{const k=fotoSleutel(r);if(k)(per[k]=per[k]||[]).push(r)});
+  return Object.values(per).filter(a=>a.length>1);
+}
 function renderAdmin(){
   const R=RECIPES, bron=bronnen(), nf=R.filter(r=>heeftEigenFoto(r.id)).length;
   const zonderIng=R.filter(r=>!(r.ingredienten||[]).length), zonderStap=R.filter(r=>!(r.stappen||[]).length),
@@ -2723,9 +2737,16 @@ function renderAdmin(){
         ${grp("Zonder (geldig) type",zonderType,r=>esc(r.type||"leeg"))}${grp("Zonder bereidingstijd",zonderTijd)}
         ${zonderTijd.length?`<div id="a_tijdbox" style="margin:6px 0 10px"><button class="btn ghost" id="a_tijd" style="width:auto">✨ Bereidingstijd laten schatten (${zonderTijd.length})</button>
           <p class="hint" id="a_tijdst">De AI schat de tijd aan de hand van ingrediënten en bereiding. Alleen lege tijden worden ingevuld; niets anders verandert. In het recept staat dan “± 25 min”.</p></div>`:""}
-        ${grp("Dubbele titels",dubbel,r=>esc(r.bron||""))}${grp("Aangepast t.o.v. origineel",aangepast)}
+        ${`<details><summary>Dubbele titels (${dubbel.length})</summary>${dubbel.length?`<ul class="alist">${dubbel.map(r=>`<li>${recLink(r)}<span class="sub">${esc(r.bron||"")}</span><button class="btn ghost" data-weg="${esc(r.id)}">Verwijder</button></li>`).join("")}</ul>`:'<p class="hint">Niets gevonden 👍</p>'}</details>`}${grp("Aangepast t.o.v. origineel",aangepast)}
         <details><summary>Aantal per type</summary><ul class="alist">${Object.entries(perType).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<li><span>${esc((EMOJI[t]||"")+" "+t)}</span><span class="sub">${n}</span></li>`).join("")}</ul></details>
       </div>
+      ${dubbeleFotos().length?`<div class="box"><h4>📷 Dezelfde foto bij meerdere recepten</h4>
+        <p class="hint">Bij ${dubbeleFotos().length} foto's wijzen twee recepten naar hetzelfde plaatje. Bekijk welke erbij hoort en haal de foto weg bij het andere recept; dat recept krijgt dan het vervangplaatje met het type-icoon.</p>
+        ${dubbeleFotos().map(groep=>`<div class="fgroep">${groep.map(r=>`<div class="fkaart">
+            <img src="${esc(img(r))}" alt="" loading="lazy">
+            <span>${recLink(r)}</span>
+            <button class="btn ghost" data-fweg="${esc(r.id)}">Foto weghalen</button></div>`).join("")}</div>`).join("")}
+      </div>`:""}
       <div class="box"><h4>🏷 Bronnen</h4>
         <ul class="alist">${Object.entries(bron).sort((a,b)=>b[1]-a[1]).map(([b,n])=>`<li><span class="lnk" style="cursor:default">${esc(b)}</span><span class="sub">${n}</span><button class="btn ghost" data-bren="${esc(b)}">Hernoemen</button></li>`).join("")||'<li><span class="hint">Nog geen bronnen</span></li>'}</ul>
         <p class="hint">Hernoem je een bron naar een naam die al bestaat, dan worden ze samengevoegd.</p>
@@ -2752,6 +2773,16 @@ function renderAdmin(){
   $("#admback").onclick=()=>history.back();
   $$("#admin [data-aopen]").forEach(b=>b.onclick=()=>openDetail(b.dataset.aopen));
   $$("#admin [data-bren]").forEach(b=>b.onclick=()=>renameBron(b.dataset.bren));
+  $$("#admin [data-fweg]").forEach(b=>b.onclick=async()=>{
+    const r=byId(b.dataset.fweg);if(!r)return;
+    if(!confirm(`De foto weghalen bij “${r.titel}”? Het recept zelf blijft staan.`))return;
+    await cloudUpdate(r.id,{foto:""});toast("Foto weggehaald");renderAdmin();
+  });
+  $$("#admin [data-weg]").forEach(b=>b.onclick=async()=>{
+    const r=byId(b.dataset.weg);if(!r)return;
+    if(!confirm(`“${r.titel}” naar de prullenbak? Je kunt hem daar terugzetten.`))return;
+    removeExtra(r.id);toast("Naar de prullenbak");setTimeout(renderAdmin,300);
+  });
   $("#a_trashBtn").onclick=loadTrash;
   if($("#a_tijd"))$("#a_tijd").onclick=schatTijden;
   $("#a_backup").onclick=adminBackup;
@@ -3953,8 +3984,8 @@ $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.27", APP_DATE="2026-09-25";
-const APP_LOG=["Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.28", APP_DATE="2026-09-25";
+const APP_LOG=["Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
