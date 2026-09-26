@@ -1,8 +1,8 @@
 {
-  "version": "26.9.28",
-  "datum": "2026-09-25",
+  "version": "26.9.30",
+  "datum": "2026-09-26",
   "notities": [
-    "Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen",
-    "Beheer: dubbele titels kun je meteen verwijderen"
+    "Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan",
+    "Boodschappenlijst: tik op een recept om het te openen"
   ]
 }
