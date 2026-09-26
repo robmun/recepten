@@ -1,6 +1,6 @@
 # Recepten — Munnichs kookboek
 
-De app draait op <https://robmun.github.io> en wordt vanuit deze repository gepubliceerd
+De app draait op <https://robmun.github.io/recepten/> en wordt vanuit deze repository gepubliceerd
 door GitHub Pages. Alles wat in de hoofdmap staat is wat de telefoons ophalen.
 
 ## Wat staat waar
@@ -9,6 +9,7 @@ door GitHub Pages. Alles wat in de hoofdmap staat is wat de telefoons ophalen.
 | --- | --- |
 | `index.html` | **De app.** Eén bestand van ongeveer 750 kB: HTML, CSS, alle code, de Firebase-SDK en de iconen. Dit bestand wordt gebouwd — nooit met de hand aanpassen. |
 | `version.json` | Wat de app ophaalt om te zien of er een nieuwe versie is. Moet gelijklopen met `APP_VERSION` en `APP_DATE` in de bron. |
+| `vorige/` | De vorige release (`index.html` en `version.json`), live op <https://robmun.github.io/recepten/vorige/>. Zo is er altijd een werkende versie als de nieuwe hapert. |
 | `manifest.webmanifest`, `icon-*.png` | Voor het zetten op het beginscherm (PWA). |
 | `bron/src.html` | **De bron.** Hier wordt aan gewerkt. |
 | `bron/build.py` | Maakt `index.html` uit `bron/src.html`. |
@@ -18,21 +19,28 @@ door GitHub Pages. Alles wat in de hoofdmap staat is wat de telefoons ophalen.
 
 ## Een nieuwe versie uitbrengen
 
-1. Pas `bron/src.html` aan.
-2. Zet bovenaan het versieblok `APP_VERSION` en `APP_DATE` op de nieuwe waarde.
+1. Kopieer eerst de huidige, nog live versie naar `vorige/`:
+   `cp index.html version.json vorige/`
+   Doe dit bij élke release, vóór het bouwen, en commit het mee.
+2. Pas `bron/src.html` aan.
+3. Zet bovenaan het versieblok `APP_VERSION` en `APP_DATE` op de nieuwe waarde.
    Het schema is **jaar.maand.volgnummer**: `26.9.30` is de dertigste versie van
    september 2026. Zet de wijziging ook vooraan in `APP_LOG`.
-3. Bouwen: `python3 bron/build.py`
-4. `version.json` bijwerken met hetzelfde versienummer, dezelfde datum en één of
+4. Bouwen: `python3 bron/build.py`
+5. `version.json` bijwerken met hetzelfde versienummer, dezelfde datum en één of
    twee regels over wat er nieuw is. De app vergelijkt **eerst de datum**, dan het
    versienummer, dus een lagere datum betekent geen update.
-5. Committen en pushen naar de hoofdtak. GitHub Pages zet het binnen een minuut live.
-6. De app op de telefoons merkt het vanzelf en toont een balk *"Nieuwe versie"*.
+6. Committen en pushen naar de hoofdtak, met een tag `v<versie>` (bijvoorbeeld `v26.9.31`). GitHub Pages zet het binnen een minuut live.
+7. De app op de telefoons merkt het vanzelf en toont een balk *"Nieuwe versie"*.
 
 Wijzigen de databaseregels? Dan die apart in de Firebase-console plakken **voordat**
 de nieuwe `index.html` live gaat, anders lopen de toestellen tegen een weigering aan.
 
 ## Terugdraaien
+
+Snelle uitweg: <https://robmun.github.io/recepten/vorige/> draait altijd de vorige
+release. Die kopie haalt haar eigen `vorige/version.json` op, dus ze gaat niet zelf
+om een update vragen. Ze gebruikt dezelfde Firebase-database als de gewone app.
 
 `git revert <commit>` en pushen. Omdat `index.html` één bestand is, is er nooit een
 halve versie live. Let op: zet `version.json` dan ook terug, anders blijven de
