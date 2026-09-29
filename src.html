@@ -168,6 +168,15 @@ body.hastimer #detail .wrap, body.hastimer main.wrap{padding-bottom:120px}
 .shop li.dragging, .shop li.gekozen{background:var(--accent-soft); border-radius:12px; outline:2.5px solid var(--accent); outline-offset:-1px; box-shadow:0 6px 18px rgba(0,0,0,.18); position:relative; z-index:2}
 .shop li.dragging .grip, .shop li.gekozen .grip{color:var(--accent)}
 /* recept uit Instagram of TikTok */
+/* suggesties uit wat je eerder kocht, terwijl je typt */
+.sug{margin:8px 0 0; border:1px solid var(--line); border-radius:12px; background:var(--card); overflow:hidden}
+.sugrij{display:flex; align-items:center; border-bottom:1px solid var(--line)}
+.sugrij:last-child{border-bottom:none}
+.sugadd{all:unset; cursor:pointer; flex:1; min-width:0; display:flex; align-items:center; gap:8px; padding:11px 12px; color:var(--ink); font-size:.92rem}
+.sugadd svg{width:15px; height:15px; flex:0 0 auto; color:var(--accent)}
+.sugadd span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sugadd em{margin-left:auto; font-style:normal; font-size:.74rem; color:var(--muted); flex:0 0 auto}
+.sugweg{border:none; background:none; color:var(--muted); font-size:.95rem; padding:11px 13px; cursor:pointer; flex:0 0 auto}
 .instaurl{width:100%; height:44px; border-radius:12px; border:1px solid var(--line); background:var(--card); padding:0 12px; font-size:.95rem}
 .instastap{margin:4px 0 10px; padding-left:20px; font-size:.82rem; color:var(--muted); line-height:1.45}
 .instastap li{margin-bottom:4px}
@@ -195,8 +204,10 @@ body.hastimer #detail .wrap, body.hastimer main.wrap{padding-bottom:120px}
 .lnk{border:none; background:none; color:var(--accent); font:inherit; text-decoration:underline; padding:0; cursor:pointer}
 .shoprecipes{display:flex; flex-direction:column; gap:6px}
 .shoprecipes div{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:.88rem}
-.shoprecipes .rlnk{all:unset; cursor:pointer; flex:1; min-width:0; display:flex; align-items:center; gap:6px; padding:4px 0; color:var(--ink)}
-.shoprecipes .rlnk b{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.shoprecipes .rlnk{all:unset; cursor:pointer; flex:1; min-width:0; display:flex; align-items:center; gap:6px; padding:4px 0; color:var(--accent)}
+.shoprecipes .rlnk b{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:1.5px}
+.shoprecipes .rlnk .hint{color:var(--muted)}
 .shoprecipes .rlnk .pijl{flex:0 0 auto; margin-left:auto; padding-left:8px; color:var(--accent); opacity:.85}
 .x{border:none; background:none; color:var(--warn); font-size:1rem; padding:4px 8px}
 /* lightbox */
@@ -435,11 +446,10 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
   <header class="top"><div class="wrap"><h1>Boodschappenlijst
     <button class="chip" id="hideHave">Verberg wat ik heb</button></h1></div></header>
   <div class="wrap" style="padding-top:10px"><form class="search" id="shopadd">
-    <input id="shopnew" type="text" placeholder="Zelf toevoegen, bijv. 2 l melk…" autocomplete="off" list="eerderlist" enterkeyhint="done">
-    <datalist id="eerderlist"></datalist>
+    <input id="shopnew" type="text" placeholder="Zelf toevoegen, bijv. 2 l melk…" autocomplete="off" enterkeyhint="done">
     <button class="btn" type="submit" style="width:auto;flex:0 0 auto"><svg class="bi"><use href="#i-plus"/></svg></button>
   </form>
-  <div class="chips" id="vaak"></div></div>
+  <div class="sug" id="sug" hidden></div></div>
   <main class="wrap" id="shopwrap"></main>
 </section>
 
@@ -501,6 +511,9 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
         <button class="chip" data-theme-set="light">Licht</button>
         <button class="chip" data-theme-set="dark">Donker</button>
       </div>
+      <p class="hint" style="margin:14px 0 6px">Timers in de kookmodus</p>
+      <div class="row"><button class="chip" id="timerdoor">Loopt door buiten de app</button></div>
+      <p class="hint" id="timerdoortxt"></p>
     </div>
     <div class="box" id="adminBox" hidden>
       <h4>Beheer</h4>
@@ -3051,6 +3064,16 @@ function applyTheme(t){if(t)document.documentElement.dataset.theme=t;else delete
   $$("[data-theme-set]").forEach(b=>b.classList.toggle("on",b.dataset.themeSet===(t||"")))}
 applyTheme(store.get("theme",""));
 $$("[data-theme-set]").forEach(b=>b.onclick=()=>{store.set("theme",b.dataset.themeSet);applyTheme(b.dataset.themeSet)});
+function toonTimerDoor(){
+  const b=$("#timerdoor"),p=$("#timerdoortxt");if(!b)return;
+  b.classList.toggle("on",timerDoor);b.setAttribute("aria-pressed",String(timerDoor));
+  p.textContent=timerDoor
+    ? "Aan: een lopende timer gaat ook af als je ondertussen in een andere app zit. De app houdt daarvoor het geluidskanaal open, waardoor muziek of een podcast even stil kan vallen."
+    : "Uit: ga je naar een andere app, dan hoor je de timer pas als je terugkomt. De tijd klopt dan wel: je ziet meteen dat hij al afgelopen is.";
+}
+$("#timerdoor").onclick=()=>{timerDoor=!timerDoor;store.set("timerdoor",timerDoor);
+  if(timerDoor){unlockAudio();planAlles()}else{keepAlive(false);timers.forEach(stopAlarm)}
+  toonTimerDoor();toast(timerDoor?"Timers lopen door buiten de app":"Timers lopen alleen in de app")};
 
 // ---------- helpers ----------
 function placeholder(r){
@@ -3179,6 +3202,8 @@ function bindCards(root){
   root.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openDetail(b.dataset.open));
   root.querySelectorAll("[data-fav]").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFav(b.dataset.fav)});
 }
+// staat dit recept nu op de boodschappenlijst?
+const opBoodschappen=id=>(shop.recipes||[]).some(x=>x.id===id);
 function sorteer(list){
   if(state.sort==="oud"){ // wat je het langst geleden maakte eerst; nooit gemaakt achteraan
     return list.sort((a,b)=>{const ga=mijnGemaakt(a.id),gb=mijnGemaakt(b.id);
@@ -3211,7 +3236,11 @@ function renderList(){
   }
   $("#count").textContent=list.length+" recept"+(list.length===1?"":"en")+(bijna.length?` · ${bijna.length} bijna`:"");
   renderFchips();
-  $("#grid").innerHTML=(list.length||bijna.length)?list.map(r=>cardHTML(r)).join("")+
+  // waar je boodschappen voor in huis haalt, staat bovenaan — tot je het weer van de lijst haalt
+  const opl=list.filter(r=>opBoodschappen(r.id)),rest=list.filter(r=>!opBoodschappen(r.id));
+  if(opl.length&&rest.length)list=[{_kop:"Op je boodschappenlijst"},...opl,{_kop:"Andere recepten"},...rest];
+  else list=[...opl,...rest];
+  $("#grid").innerHTML=(list.length||bijna.length)?list.map(r=>r._kop?`<div class="kop">${esc(r._kop)}</div>`:cardHTML(r)).join("")+
     (bijna.length?`<div class="kop">Je mist nog één ding:</div>`+bijna.map(x=>cardHTML(x.r,"mist: "+x.m[0])).join(""):""):`<div class="empty" style="grid-column:1/-1">${RECIPES.length?"Geen recepten gevonden.":"Nog geen recepten.<br>Tik op + om er een toe te voegen, of importeer je receptenbestand via Instellingen."}</div>`;
   bindCards($("#grid"));
 }
@@ -3481,7 +3510,14 @@ async function requestWake(){
   }catch(e){toast("Scherm aan houden lukt hier niet; zet automatisch vergrendelen even uit")}
 }
 function releaseWake(){try{wake&&wake.release()}catch(e){}wake=null;try{nosleepVid&&nosleepVid.pause()}catch(e){}}
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(cookOn&&cur&&!wake)requestWake();tickTimers()}});
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState!=="visible")return;
+  if(cookOn&&cur&&!wake)requestWake();
+  // het geluidskanaal kan tijdens je afwezigheid stilgelegd zijn; opnieuw wekken en
+  // de alarmen opnieuw inplannen, want de audioklok liep ondertussen niet door
+  unlockAudio();
+  tickTimers();
+});
 // ---------- kookmodus: timers ----------
 const TIJD_RE=/\b(?:(\d+(?:[.,]\d+)?)(?:\s*(?:-|–|—|tot|à)\s*(\d+(?:[.,]\d+)?))?\s*(minuten|minuut|min\b\.?|uur|uren|u\b|seconden|sec\b\.?)|(anderhalf uur|een half uur|half uur|een kwartier|kwartier|drie kwartier))/gi;
 function timerHTML(s,k){
@@ -3498,37 +3534,81 @@ function timerHTML(s,k){
   // de tekst blijft zoals hij is; de timers staan eronder
   return esc(s)+(btns.length?`<span class="tbtns">${btns.join("")}</span>`:"");
 }
-let timers=[],timerIv=null,audioCtx=null;
-function unlockAudio(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==="suspended")audioCtx.resume()}catch(e){}}
+let timers=[],timerIv=null,audioCtx=null,keepNode=null;
+let timerDoor=store.get("timerdoor",true); // laat de timer doorlopen als je de app verlaat
+function unlockAudio(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended")audioCtx.resume().then(planAlles).catch(()=>{});else planAlles()}catch(e){}}
+// Zodra je naar een andere app gaat bevriest de telling in de pagina. Daarom zetten we het
+// alarm van tevoren klaar in de audio-tijdlijn: dat loopt door, ook als de pagina stilligt.
+// Een vrijwel onhoorbare toon houdt het geluidskanaal open zolang er een timer loopt.
+function keepAlive(aan){
+  try{
+    if(aan&&timerDoor&&audioCtx&&!keepNode){
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.frequency.value=30;g.gain.value=0.0002;o.connect(g).connect(audioCtx.destination);o.start();
+      keepNode={o,g};
+    }else if((!aan||!timerDoor)&&keepNode){try{keepNode.o.stop()}catch(e){}keepNode=null}
+  }catch(e){}
+}
+function planAlarm(t){
+  stopAlarm(t);
+  if(!audioCtx||audioCtx.state!=="running"||t.af||t.left!=null)return;
+  const over=(t.end-Date.now())/1000;if(over<=0)return;
+  const t0=audioCtx.currentTime+over;t.nodes=[];
+  for(let i=0;i<8;i++){
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.value=i%2?880:1175;
+    g.gain.setValueAtTime(0.0001,t0+i*.35);g.gain.exponentialRampToValueAtTime(0.6,t0+i*.35+.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+i*.35+.3);
+    o.connect(g).connect(audioCtx.destination);o.start(t0+i*.35);o.stop(t0+i*.35+.32);t.nodes.push(o);
+  }
+}
+function stopAlarm(t){(t.nodes||[]).forEach(o=>{try{o.stop()}catch(e){}});t.nodes=null}
+function planAlles(){timers.forEach(planAlarm);keepAlive(timers.some(t=>!t.af&&t.left==null))}
+const TKEY="timers";
+function saveTimers(){
+  store.set(TKEY,timers.map(t=>({id:t.id,label:t.label,dur:t.dur,end:t.end,left:t.left,af:t.af})));
+}
+function laadTimers(){
+  const l=store.get(TKEY,[]);if(!Array.isArray(l)||!l.length)return;
+  timers=l.filter(t=>t&&t.end).map(t=>({...t,nodes:null,af:!!t.af||(t.left==null&&Date.now()>=t.end)}));
+  if(timers.length){renderTimers();if(!timerIv)timerIv=setInterval(tickTimers,1000)}
+}
 function beep(){try{unlockAudio();const t0=audioCtx.currentTime;for(let i=0;i<6;i++){const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.value=i%2?880:1175;
   g.gain.setValueAtTime(0.0001,t0+i*.35);g.gain.exponentialRampToValueAtTime(0.6,t0+i*.35+.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+i*.35+.3);o.connect(g).connect(audioCtx.destination);o.start(t0+i*.35);o.stop(t0+i*.35+.32)}}catch(e){}}
 const mmss=s=>{s=Math.max(0,Math.ceil(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
 function startTimer(sec,label){
   unlockAudio();
-  timers.push({id:Date.now()+Math.random(),label,dur:sec,end:Date.now()+sec*1000,left:null,af:false});
+  const t={id:Date.now()+Math.random(),label,dur:sec,end:Date.now()+sec*1000,left:null,af:false,nodes:null};
+  timers.push(t);planAlarm(t);keepAlive(true);saveTimers();
   toast("Timer gestart: "+mmss(sec));renderTimers();
   if(!timerIv)timerIv=setInterval(tickTimers,1000);
 }
 function tickTimers(){
   let ring=false;
-  timers.forEach(t=>{if(!t.af&&t.left==null&&Date.now()>=t.end){t.af=true;ring=true}});
-  if(ring){beep();try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400])}catch(e){}toast("⏰ Timer klaar!")}
+  timers.forEach(t=>{if(!t.af&&t.left==null&&Date.now()>=t.end){t.af=true;stopAlarm(t);ring=true}});
+  if(ring){beep();try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400])}catch(e){}toast("⏰ Timer klaar!");saveTimers()}
   // blijft piepen tot je hem wegtikt (elke 5 seconden)
   else if(timers.some(t=>t.af)&&Math.floor(Date.now()/1000)%5===0)beep();
   if(!timers.length){clearInterval(timerIv);timerIv=null}
+  keepAlive(timers.some(t=>!t.af&&t.left==null));
   if(ring)renderTimers();
   else timers.forEach(t=>{const e=document.querySelector(`#timers [data-tt="${t.id}"]`);if(e&&!t.af)e.textContent=mmss(t.left!=null?t.left:(t.end-Date.now())/1000)});
   const el=$("#timers");if(el)el.classList.toggle("indetail",$("#detail").classList.contains("open"));
 }
+// hoe lang geleden liep de timer af — zodat je ziet dat je hem gemist hebt
+const geledenTxt=ms=>{const s=Math.floor(ms/1000);if(s<45)return"";const m=Math.round(s/60);
+  return m<1?" · zojuist":m<60?` · ${m} min geleden`:` · ${Math.floor(m/60)} uur geleden`};
 function renderTimers(){
   const el=$("#timers");if(!el)return;el.hidden=!timers.length;document.body.classList.toggle("hastimer",timers.length>0);
   el.classList.toggle("indetail",$("#detail").classList.contains("open"));
   el.innerHTML=timers.map(t=>{const rest=t.left!=null?t.left:(t.end-Date.now())/1000;
-    return `<div class="timer ${t.af?"af":""}"><span class="tl">${esc(t.label)}</span><span class="tt" data-tt="${t.id}">${t.af?"Klaar!":mmss(rest)}</span>
+    return `<div class="timer ${t.af?"af":""}"><span class="tl">${esc(t.label)}</span><span class="tt" data-tt="${t.id}">${t.af?"Klaar!"+geledenTxt(Date.now()-t.end):mmss(rest)}</span>
       ${t.af?"":`<button data-tp="${t.id}" aria-label="${t.left!=null?"Verder":"Pauze"}">${t.left!=null?"▶":"⏸"}</button>`}<button data-tx="${t.id}" aria-label="Timer stoppen">✕</button></div>`}).join("");
   $$("#timers [data-tp]").forEach(b=>b.onclick=()=>{const t=timers.find(x=>x.id==b.dataset.tp);if(!t)return;
-    if(t.left!=null){t.end=Date.now()+t.left*1000;t.left=null}else t.left=(t.end-Date.now())/1000;renderTimers()});
-  $$("#timers [data-tx]").forEach(b=>b.onclick=()=>{timers=timers.filter(x=>x.id!=b.dataset.tx);renderTimers()});
+    if(t.left!=null){t.end=Date.now()+t.left*1000;t.left=null;planAlarm(t)}else{t.left=(t.end-Date.now())/1000;stopAlarm(t)}
+    keepAlive(timers.some(x=>!x.af&&x.left==null));saveTimers();renderTimers()});
+  $$("#timers [data-tx]").forEach(b=>b.onclick=()=>{const t=timers.find(x=>x.id==b.dataset.tx);if(t)stopAlarm(t);
+    timers=timers.filter(x=>x.id!=b.dataset.tx);keepAlive(timers.some(x=>!x.af&&x.left==null));saveTimers();renderTimers()});
 }
 $("#lbclose").onclick=()=>history.back();
 $("#photoFile").onchange=async e=>{
@@ -3674,7 +3754,8 @@ function parseText(text){
   out.type=guessType(out.titel);
   return out;
 }
-window.__rb={parseHTML,parseText,parseIng,zetVolgorde,renderShop,shop:()=>shop}; // (handig voor testen)
+window.__rb={parseHTML,parseText,parseIng,zetVolgorde,renderShop,shop:()=>shop, // (handig voor testen)
+  startTimer:(s,l)=>startTimer(s,l),timerInfo:()=>timers.map(t=>({af:t.af,left:t.left,nodes:(t.nodes||[]).length})),keepOn:()=>!!keepNode};
 
 // ---------- recept uit een foto (Gemini via Firebase AI Logic) ----------
 const AI_MODELS=["gemini-3.5-flash","gemini-3.5-flash-lite","gemini-3-flash-preview"];
@@ -4122,27 +4203,41 @@ $("#shopadd").onsubmit=e=>{
   const v=$("#shopnew").value.trim();if(!v)return;
   const i=parseIng(v);if(!i||!i.n){toast("Kon dit niet lezen");return}
   voegLosToe(i.n,i.q,i.u);
-  $("#shopnew").value="";$("#shopnew").focus();
+  $("#shopnew").value="";renderSug();$("#shopnew").focus();
 };
-let vaakOpruimen=false;
-function renderVaak(){
-  const el=$("#vaak");if(!el)return;
-  const top=eerderTop(vaakOpruimen?40:12);
-  el.innerHTML=top.length?`<span class="hint" style="align-self:center;margin:0 4px 0 0;flex:0 0 auto">Eerder gekocht:</span>`+
-    top.map(x=>`<button class="chip ${vaakOpruimen?"weg":""}" data-vaak="${esc(x.n)}">${vaakOpruimen?"✕ ":"+ "}${esc(x.n)}</button>`).join("")+
-    `<button class="chip" id="vaakEdit" style="color:var(--muted)">${vaakOpruimen?"Klaar":"Opruimen"}</button>`:"";
-  $$("#vaak [data-vaak]").forEach(b=>b.onclick=()=>{
-    const naam=b.dataset.vaak;
-    if(vaakOpruimen){shop.eerder=(shop.eerder||[]).filter(y=>y.n!==naam);saveShop();renderVaak();toast(naam+" verwijderd uit de suggesties");return}
-    const x=(shop.eerder||[]).find(y=>y.n===naam)||{};voegLosToe(naam,null,x.u)});
-  if($("#vaakEdit"))$("#vaakEdit").onclick=()=>{vaakOpruimen=!vaakOpruimen;renderVaak()};
-  const dl=$("#eerderlist");
-  if(dl)dl.innerHTML=(shop.eerder||[]).slice().sort((a,b)=>(b.keer||0)-(a.keer||0)).slice(0,200).map(x=>`<option value="${esc(x.n)}">`).join("");
+// Suggesties uit wat je eerder kocht, maar alleen terwijl je typt: "me" laat "melk" zien.
+// Zo blijft de pagina rustig en zijn die producten toch binnen handbereik.
+function renderSug(){
+  const el=$("#sug"),veld=$("#shopnew");if(!el||!veld)return;
+  const ruw=veld.value.trim();
+  const ont=ruw?parseIng(ruw):null;
+  const term=norm((ont&&ont.n)||ruw).trim();
+  if(term.length<1){el.hidden=true;el.innerHTML="";return}
+  const opLijst=new Set(aggregate().map(x=>rangKey(x.n)));
+  const treffers=(shop.eerder||[])
+    .filter(x=>!opLijst.has(rangKey(x.n))&&norm(x.n).includes(term)&&norm(x.n)!==term)
+    .sort((a,b)=>{const pa=norm(a.n).startsWith(term)?0:1,pb=norm(b.n).startsWith(term)?0:1;
+      return pa-pb||(b.keer||0)-(a.keer||0)||a.n.localeCompare(b.n,"nl")}).slice(0,6);
+  el.hidden=!treffers.length;
+  el.innerHTML=treffers.map(x=>`<div class="sugrij">
+    <button class="sugadd" data-sug="${esc(x.n)}">${ico("plus")}<span>${esc(x.n)}</span><em>${x.keer>1?x.keer+"×":"eerder gekocht"}</em></button>
+    <button class="sugweg" data-sugweg="${esc(x.n)}" aria-label="${esc(x.n)} niet meer voorstellen">✕</button></div>`).join("");
+  $$("#sug [data-sug]").forEach(b=>b.onclick=()=>{
+    const naam=b.dataset.sug,x=(shop.eerder||[]).find(y=>y.n===naam)||{};
+    const getypt=parseIng(veld.value.trim());
+    voegLosToe(naam,getypt&&getypt.q!=null?getypt.q:null,(getypt&&getypt.u)||x.u||"");
+    veld.value="";renderSug();veld.focus();
+  });
+  $$("#sug [data-sugweg]").forEach(b=>b.onclick=()=>{
+    const naam=b.dataset.sugweg;
+    shop.eerder=(shop.eerder||[]).filter(y=>y.n!==naam);saveShop();renderSug();
+    toast(naam+" wordt niet meer voorgesteld");
+  });
 }
 function addToShop(id,p){
   const e=shop.recipes.find(x=>x.id===id);
   if(e)e.porties=p;else shop.recipes.push({id,porties:p});
-  saveShop();renderShop();toast("Toegevoegd aan boodschappenlijst");
+  saveShop();renderShop();renderList();toast("Toegevoegd aan boodschappenlijst");
 }
 // jouw eigen volgorde in de winkel: per product onthouden we een rangnummer
 const rangKey=n=>norm(n).replace(/\s+/g," ").trim();
@@ -4172,11 +4267,6 @@ function onthoud(n,u){
   else lijst.push({n,u:u||"",keer:1,laatst:Date.now()});
   if(lijst.length>400)lijst.sort((a,b2)=>(b2.keer||0)-(a.keer||0)||(b2.laatst||0)-(a.laatst||0)).splice(300);
 }
-const eerderTop=(n=10)=>{
-  const op=new Set(aggregate().map(i=>rangKey(i.n)));
-  return (shop.eerder||[]).filter(x=>!op.has(rangKey(x.n)))
-    .sort((a,b)=>(b.keer||0)-(a.keer||0)||(b.laatst||0)-(a.laatst||0)).slice(0,n);
-};
 function voegLosToe(n,q,u){
   shop.los=[...(shop.los||[]),{n,q:q==null?null:q,u:u||""}];
   onthoud(n,u);saveShop();renderShop();
@@ -4212,7 +4302,7 @@ function updateBadge(){
 function renderShop(){
   const items=aggregate(), have=new Set(shop.have), nieuw=kentVolgorde();
   $("#hideHave").classList.toggle("on",state.hideHave);
-  if(!shop.recipes.length&&!(shop.los||[]).length){$("#shopwrap").innerHTML=`<div class="empty">Je lijst is leeg.<br>Typ hierboven zelf iets, tik op een eerder gekocht product, of open een recept en tik op “Op boodschappenlijst”.</div>`;renderVaak();updateBadge();return}
+  if(!shop.recipes.length&&!(shop.los||[]).length){$("#shopwrap").innerHTML=`<div class="empty">Je lijst is leeg.<br>Typ hierboven zelf iets — je krijgt suggesties uit wat je eerder kocht — of open een recept en tik op “Op boodschappenlijst”.</div>`;renderSug();updateBadge();return}
   const vis=items.filter(i=>!(state.hideHave&&have.has(i.key)));
   $("#shopwrap").innerHTML=`
     ${shop.recipes.length?`<div class="box"><h4>Recepten op de lijst</h4><div class="shoprecipes">${shop.recipes.map(x=>{const r=byId(x.id);return r?`<div><button class="rlnk" data-naar="${esc(x.id)}"><b>${esc(r.titel)}</b><span class="hint">· ${x.porties} p.</span><svg class="pijl" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button><button class="x" data-rm="${esc(x.id)}" aria-label="Verwijder ${esc(r.titel)} van de lijst">✕</button></div>`:""}).join("")}</div></div>`:""}
@@ -4221,17 +4311,17 @@ function renderShop(){
       <span><b>${esc((i.q?fmt(i.q)+(i.u?" "+i.u:""):"")+(i.noq&&i.q?" +":""))}</b> ${esc(i.n)}<span class="src">${esc([...i.src].join(", "))||"zelf toegevoegd"}</span></span></label>${i.los&&!i.src.size?`<button class="x" data-los="${esc(i.n)}" aria-label="Verwijder ${esc(i.n)}">✕</button>`:""}<button class="grip" data-drag aria-label="Versleep ${esc(i.n)}">${ico("drag")}</button></li>`).join("")}</ul>
     <p class="hint">Sleep met ${ico("drag")} om de volgorde te veranderen, of tik er één keer op en tik daarna op de plek waar het product naartoe moet. De app onthoudt jouw volgorde.${nieuw?" Wat nieuw op de lijst komt, zet de app bovenaan tot je het zelf op zijn plek in je route zet.":""}${nieuw?` <button class="lnk" id="resetVolgorde">Volgorde vergeten</button>`:""}</p>
     <div class="row" style="margin:16px 0"><button class="btn ghost" id="copyShop" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M8 9H6.5A1.5 1.5 0 0 0 5 10.5v9A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 17.5 9H16"/><path d="M12 14V3"/><path d="M8.5 6.5 12 3l3.5 3.5"/></svg>Deel lijst</button><button class="btn ghost" id="clearShop" style="flex:1;color:var(--warn)">Lijst leegmaken</button></div>`;
-  $$("[data-rm]").forEach(b=>b.onclick=()=>{shop.recipes=shop.recipes.filter(x=>x.id!==b.dataset.rm);saveShop();renderShop()});
+  $$("[data-rm]").forEach(b=>b.onclick=()=>{shop.recipes=shop.recipes.filter(x=>x.id!==b.dataset.rm);saveShop();renderShop();renderList()});
   $$("[data-naar]").forEach(b=>b.onclick=()=>openDetail(b.dataset.naar));
   $$("[data-los]").forEach(b=>b.onclick=()=>{shop.los=(shop.los||[]).filter(x=>x.n!==b.dataset.los);saveShop();renderShop()});
   $$("[data-have]").forEach(c=>c.onchange=()=>{const k=c.dataset.have;const s=new Set(shop.have);
     if(c.checked){s.add(k);const it=items.find(i=>i.key===k);if(it)onthoud(it.n,it.u)}else s.delete(k);
     shop.have=[...s];saveShop();renderShop()});
   sleepLijst($("#shoplist"),items);
-  renderVaak();
+  renderSug();
   if($("#resetVolgorde"))$("#resetVolgorde").onclick=()=>{if(!confirm("Jouw volgorde in de winkel vergeten? De lijst staat daarna weer op alfabet."))return;
     shop.volgorde={};saveShop();renderShop();toast("Volgorde gewist")};
-  $("#clearShop").onclick=()=>{if(confirm("Boodschappenlijst leegmaken?")){shop={recipes:[],have:[],los:[],volgorde:shop.volgorde||{},eerder:shop.eerder||[]};saveShop();renderShop()}};
+  $("#clearShop").onclick=()=>{if(confirm("Boodschappenlijst leegmaken?")){shop={recipes:[],have:[],los:[],volgorde:shop.volgorde||{},eerder:shop.eerder||[]};saveShop();renderShop();renderList()}};
   $("#copyShop").onclick=()=>{
     const txt=items.filter(i=>!have.has(i.key)).map(i=>"- "+(i.q?fmt(i.q)+(i.u?" "+i.u:"")+" ":"")+i.n).join("\n");
     shareOrCopy({title:"Boodschappenlijst",text:"Boodschappenlijst\n"+txt});
@@ -4239,11 +4329,12 @@ function renderShop(){
   updateBadge();
 }
 $("#hideHave").onclick=()=>{state.hideHave=!state.hideHave;store.set("hideHave",state.hideHave);renderShop()};
+$("#shopnew").oninput=renderSug;
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.33", APP_DATE="2026-09-29";
-const APP_LOG=["Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.9.35", APP_DATE="2026-09-29";
+const APP_LOG=["Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten","Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen","Recepten op de boodschappenlijst zijn duidelijk aantikbaar","Timers lopen door als je de app verlaat en gaan ook dan af","Lopende timers overleven het afsluiten van de app","Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
@@ -4458,7 +4549,10 @@ $$("nav.tabs button").forEach(b=>b.onclick=()=>{
   window.scrollTo(0,0);
 });
 
-zoekTip();
+zoekTip();laadTimers();toonTimerDoor();
+// na een herstart mag het geluid pas na een aanraking; dan zetten we de alarmen alsnog klaar
+if(timers.length&&!audioCtx)["pointerdown","keydown"].forEach(ev=>
+  document.addEventListener(ev,()=>unlockAudio(),{once:true,passive:true}));
 renderTypes();renderBronnen();renderDoorsel();renderLabelsel();renderList();updateBadge();
 initVersion();
 initAccountUI();initCloud();

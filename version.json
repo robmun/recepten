@@ -1,7 +1,9 @@
 {
-  "version": "26.9.33",
+  "version": "26.9.35",
   "datum": "2026-09-29",
   "notities": [
-    "Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift"
+    "Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten",
+    "Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen",
+    "Recepten op de boodschappenlijst zijn duidelijk aantikbaar"
   ]
 }
