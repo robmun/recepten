@@ -1,9 +1,9 @@
 {
-  "version": "26.9.35",
-  "datum": "2026-09-29",
+  "version": "26.9.36",
+  "datum": "2026-09-30",
   "notities": [
-    "Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten",
-    "Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen",
-    "Recepten op de boodschappenlijst zijn duidelijk aantikbaar"
+    "Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen",
+    "Op de receptpagina zie je naar welke site de link gaat",
+    "Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen"
   ]
 }
