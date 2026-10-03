@@ -1,9 +1,8 @@
 {
-  "version": "26.9.36",
-  "datum": "2026-09-30",
+  "version": "26.10.1",
+  "datum": "2026-10-03",
   "notities": [
-    "Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen",
-    "Op de receptpagina zie je naar welke site de link gaat",
-    "Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen"
+    "Het e-mailadres van de beheerder staat niet meer leesbaar in de app",
+    "Beheer: je beheerders-id voor de databaseregels staat bij Gezinsleden"
   ]
 }

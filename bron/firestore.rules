@@ -7,8 +7,11 @@ service cloud.firestore {
     function lid() {
       return request.auth != null;
     }
+    // De beheerder herkennen we aan zijn vaste gebruikers-id in plaats van aan zijn
+    // e-mailadres: deze repository is openbaar en dan hoeft dat adres hier niet in te staan.
+    // Het id vind je terug in de app onder Instellingen › Beheer › Gezinsleden.
     function beheerder() {
-      return lid() && request.auth.token.email == 'robertmunnichs@gmail.com';
+      return lid() && request.auth.uid == 'j7eE8s1aUzbmuMOoRwnb9NwxBkI3';
     }
 
     // Gedeelde recepten (incl. notities): iedereen mag lezen, toevoegen, aanpassen en (zacht) verwijderen
