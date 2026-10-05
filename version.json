@@ -1,8 +1,7 @@
 {
-  "version": "26.10.1",
-  "datum": "2026-10-03",
+  "version": "26.10.2",
+  "datum": "2026-10-05",
   "notities": [
-    "Het e-mailadres van de beheerder staat niet meer leesbaar in de app",
-    "Beheer: je beheerders-id voor de databaseregels staat bij Gezinsleden"
+    "Het scherm blijft aan zolang de app openstaat, niet alleen in de kookmodus"
   ]
 }
