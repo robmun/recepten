@@ -512,6 +512,9 @@ textarea{width:100%; min-height:120px; border-radius:12px; border:1px solid var(
         <button class="chip" data-theme-set="light">Licht</button>
         <button class="chip" data-theme-set="dark">Donker</button>
       </div>
+      <p class="hint" style="margin:14px 0 6px">Scherm</p>
+      <div class="row"><button class="chip" id="wakeaan">Blijft aan zolang de app open is</button></div>
+      <p class="hint" id="wakeaantxt"></p>
       <p class="hint" style="margin:14px 0 6px">Timers in de kookmodus</p>
       <div class="row"><button class="chip" id="timerdoor">Loopt door buiten de app</button></div>
       <p class="hint" id="timerdoortxt"></p>
@@ -2348,11 +2351,14 @@ const FIREBASE_CONFIG={
   messagingSenderId:"786687376892",
   appId:"1:786687376892:web:36c94cd8b79557ff1ec679"
 };
+// de beheerder herkennen we aan een code van zijn e-mailadres, niet aan het adres zelf:
+// de app is openbaar leesbaar en dan hoeft dat adres daar niet in te staan
 const ADMIN_HASH="g7inej";
 // reCAPTCHA Enterprise-sleutel voor Firebase App Check (nodig voor het lezen van foto's). null = uit.
 const RECAPTCHA_SITE_KEY="6LdFHsktAAAAAG8EJg74IOWZ8jRqYiOlMZYPi5KE";
 // namen bij e-mailadressen (als code, zodat de adressen niet leesbaar in de openbare app staan)
 const NAMEN={"g7inej":"Robert","1s0bet7":"Heleen","ayspfp":"Jasmijn","867uht":"Maura"};
+const isBeheerder=email=>mailHash(email)===ADMIN_HASH;
 const mailHash=s=>{s=String(s||"").trim().toLowerCase();let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0}return h.toString(36)};
 const CLOUD={on:!!(FIREBASE_CONFIG&&window.FB),F:null,auth:null,db:null,user:null,naam:"",isAdmin:false,
   cache:new Map(),sync:0,psync:0,gsync:0,unsub:[],justLoggedIn:false,status:"",privTimer:null,noteTimers:{},firstLoad:false,
@@ -2474,7 +2480,7 @@ function initCloud(){
 async function onCloudUser(u){
   const F=CLOUD.F,db=CLOUD.db;
   if(!u){CLOUD.user=null;stopSync();store.set("cloudUser","");showLogin(CLOUD.pendingMsg||"");CLOUD.pendingMsg="";renderAccount();return}
-  CLOUD.user=u;CLOUD.naam=naamVan(u.email);CLOUD.isAdmin=mailHash(u.email)===ADMIN_HASH;
+  CLOUD.user=u;CLOUD.naam=naamVan(u.email);CLOUD.isAdmin=isBeheerder(u.email);
   const ref=F.doc(db,"users",u.uid);let res="ok";
   try{
     if(CLOUD.justLoggedIn){
@@ -2743,10 +2749,13 @@ async function loadUsers(){
   try{const s=await F.getDocs(F.collection(CLOUD.db,"users"));const rows=[];s.forEach(d=>rows.push({uid:d.id,...d.data()}));
     rows.sort((a,b)=>String(a.naam).localeCompare(String(b.naam),"nl"));
     CLOUD.userNames=Object.fromEntries(rows.map(u=>[u.uid,u.naam||"?"]));
-    el.innerHTML=rows.length?rows.map(u=>`<div class="urow"><div><b>${esc(u.naam||"?")}</b><span class="hint">${mailHash(u.email)===ADMIN_HASH?`💻📱 Meerdere toestellen (beheerder) · laatst op ${esc(u.deviceInfo||"toestel")}`:u.deviceId?`📱 ${esc(u.deviceInfo||"toestel")} · gekoppeld ${dtNL(u.gekoppeldOp)}`:"Geen toestel gekoppeld"}<br>Laatst gezien ${dtNL(u.laatstGezien)} · versie ${esc(u.appVersie||"–")}${u.appVersie&&cmpVer(u.appVersie,APP_VERSION)<0?" ⚠︎ verouderd":""}</span></div>
-      <div class="btns">${u.deviceId&&mailHash(u.email)!==ADMIN_HASH?`<button class="btn ghost" data-reset="${esc(u.uid)}" data-naam="${esc(u.naam||"")}">Ontkoppel</button>`:""}${u.email?`<button class="btn ghost" data-mail="${esc(u.email)}" data-naam="${esc(u.naam||"")}">Resetmail</button>`:""}</div></div>`).join("")+
-      `<p class="hint" style="margin-top:8px">Nieuwe gezinsleden maak je aan in de Firebase-console › Authentication › Users, met hun eigen e-mailadres. Ze verschijnen hier na hun eerste keer inloggen.</p>`
+    el.innerHTML=rows.length?rows.map(u=>`<div class="urow"><div><b>${esc(u.naam||"?")}</b><span class="hint">${isBeheerder(u.email)?`💻📱 Meerdere toestellen (beheerder) · laatst op ${esc(u.deviceInfo||"toestel")}`:u.deviceId?`📱 ${esc(u.deviceInfo||"toestel")} · gekoppeld ${dtNL(u.gekoppeldOp)}`:"Geen toestel gekoppeld"}<br>Laatst gezien ${dtNL(u.laatstGezien)} · versie ${esc(u.appVersie||"–")}${u.appVersie&&cmpVer(u.appVersie,APP_VERSION)<0?" ⚠︎ verouderd":""}</span></div>
+      <div class="btns">${u.deviceId&&!isBeheerder(u.email)?`<button class="btn ghost" data-reset="${esc(u.uid)}" data-naam="${esc(u.naam||"")}">Ontkoppel</button>`:""}${u.email?`<button class="btn ghost" data-mail="${esc(u.email)}" data-naam="${esc(u.naam||"")}">Resetmail</button>`:""}</div></div>`).join("")+
+      `<p class="hint" style="margin-top:8px">Nieuwe gezinsleden maak je aan in de Firebase-console › Authentication › Users, met hun eigen e-mailadres. Ze verschijnen hier na hun eerste keer inloggen.</p>
+      <p class="hint" style="margin-top:8px">Jouw beheerders-id voor de databaseregels: <b id="a_uid">${esc(mijnUid())}</b> <button class="lnk" id="a_uidkopie">kopieer de regel</button></p>`
       :'<p class="hint">Nog niemand ingelogd.</p>';
+    if($("#a_uidkopie"))$("#a_uidkopie").onclick=()=>
+      shareOrCopy({title:"Beheerdersregel",text:`return lid() && request.auth.uid == '${mijnUid()}';`});
     $$("#a_users [data-reset]").forEach(b=>b.onclick=async()=>{
       if(!confirm(`Toestel van ${b.dataset.naam} ontkoppelen? ${b.dataset.naam} moet daarna opnieuw inloggen; het eerste toestel waarop dat gebeurt wordt gekoppeld.`))return;
       try{await F.updateDoc(F.doc(CLOUD.db,"users",b.dataset.reset),{deviceId:"",deviceInfo:""});toast("Ontkoppeld");loadUsers()}catch(e){cloudErr("Ontkoppelen",e)}});
@@ -3065,6 +3074,15 @@ function applyTheme(t){if(t)document.documentElement.dataset.theme=t;else delete
   $$("[data-theme-set]").forEach(b=>b.classList.toggle("on",b.dataset.themeSet===(t||"")))}
 applyTheme(store.get("theme",""));
 $$("[data-theme-set]").forEach(b=>b.onclick=()=>{store.set("theme",b.dataset.themeSet);applyTheme(b.dataset.themeSet)});
+function toonWake(){
+  const b=$("#wakeaan"),p=$("#wakeaantxt");if(!b)return;
+  b.classList.toggle("on",wakeAan);b.setAttribute("aria-pressed",String(wakeAan));
+  p.textContent=wakeAan
+    ? "Aan: zolang de app voor je neus staat gaat het scherm niet vanzelf uit. Zwiep je de app weg of vergrendel je de telefoon, dan geldt je gewone instelling weer."
+    : "Uit: het scherm dimt gewoon volgens je telefooninstelling. In de kookmodus blijft het scherm hoe dan ook aan.";
+}
+$("#wakeaan").onclick=()=>{wakeAan=!wakeAan;store.set("wakeaan",wakeAan);zorgWake();toonWake();
+  toast(wakeAan?"Scherm blijft aan in de app":"Scherm dimt weer normaal")};
 function toonTimerDoor(){
   const b=$("#timerdoor"),p=$("#timerdoortxt");if(!b)return;
   b.classList.toggle("on",timerDoor);b.setAttribute("aria-pressed",String(timerDoor));
@@ -3417,7 +3435,7 @@ function openDetail(id){
   document.body.style.overflow="hidden";
   history.pushState({d:1},"");
 }
-function closeDetail(){$("#detail").classList.remove("open");document.body.style.overflow="";cur=null;cookOn=false;$("#detail").classList.remove("cook");releaseWake()}
+function closeDetail(){$("#detail").classList.remove("open");document.body.style.overflow="";cur=null;cookOn=false;$("#detail").classList.remove("cook");zorgWake()}
 window.addEventListener("popstate",()=>{
   if($("#lb").classList.contains("open"))$("#lb").classList.remove("open");
   else if($("#editor").classList.contains("open"))closeEditor();
@@ -3460,7 +3478,7 @@ function renderDetail(){
       </div>
       <div class="box" id="dsteps"><h4>Bereiding <button class="cookbtn ${cookOn?"on":""}" id="dcook" aria-pressed="${cookOn}">${ico("chef")} Kookmodus${cookOn?" aan":""}</button></h4>
         <ol class="steps">${steps}</ol>
-        <p class="hint">${cookOn?"Het scherm blijft aan. Tik op een timerknop om hem te starten, en op een stap om hem af te vinken.":"Tik op een stap om hem af te vinken. Kookmodus: grotere tekst, scherm blijft aan en timers."}</p>
+        <p class="hint">${cookOn?"Tik op een timerknop om hem te starten, en op een stap om hem af te vinken.":"Tik op een stap om hem af te vinken. Kookmodus: grotere tekst en timers."}</p>
       </div>
       <div class="box" id="dnotesbox"><h4>${ico("note")} Notities <span class="saved" id="nsaved">Opgeslagen ✓</span></h4>
         <textarea class="notes" id="dnotes" placeholder="Jouw notitie, bijv. minder zout, 5 min langer in de oven…">${esc((gedeeldVan(mijnUid()).notities||{})[r.id]||"")}</textarea>
@@ -3500,24 +3518,35 @@ function renderDetail(){
   $("#dimg").onclick=()=>{$("#lbimg").src=grootImg(r);$("#lb").classList.add("open");history.pushState({lb:1},"")};
   $$("#detail [data-step]").forEach(li=>li.onclick=e=>{if(e.target.closest(".tbtn"))return;const k=+li.dataset.step;cur.done.has(k)?cur.done.delete(k):cur.done.add(k);li.classList.toggle("done")});
   $$("#detail .tbtn").forEach(b=>b.onclick=e=>{e.stopPropagation();startTimer(+b.dataset.sec,`${r.titel} · stap ${+b.dataset.k+1}`)});
-  $("#dcook").onclick=()=>{cookOn=!cookOn;if(cookOn){requestWake();unlockAudio()}else releaseWake();renderDetail();
+  $("#dcook").onclick=()=>{cookOn=!cookOn;if(cookOn)unlockAudio();zorgWake();renderDetail();
     if(cookOn)setTimeout(()=>{const el=$("#dsteps");if(el)el.scrollIntoView({behavior:"smooth",block:"start"})},50)};
 }
-// ---------- kookmodus: scherm aan ----------
+// ---------- scherm aan houden zolang de app openstaat ----------
 const NOSLEEP_MP4="data:video/mp4;base64,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";
-let nosleepVid=null;
-async function requestWake(){
-  try{if(navigator.wakeLock){wake=await navigator.wakeLock.request("screen");wake.addEventListener&&wake.addEventListener("release",()=>{wake=null});return}}catch(e){wake=null}
+let nosleepVid=null, wakeBezig=false;
+let wakeAan=store.get("wakeaan",true); // scherm aanhouden zolang de app voor je neus staat
+// in de kookmodus blijft het scherm altijd aan, daarbuiten alleen als je dat wilt
+const wakeNodig=()=>document.visibilityState==="visible"&&(cookOn||wakeAan);
+async function zorgWake(){
+  if(wakeBezig)return;wakeBezig=true;
+  try{ if(wakeNodig())await requestWake(cookOn); else releaseWake(); }
+  finally{wakeBezig=false}
+}
+async function requestWake(meldFout){
+  try{if(navigator.wakeLock){if(wake)return;
+    wake=await navigator.wakeLock.request("screen");
+    // het toestel geeft de vergrendeling zelf vrij zodra je de app wegzwiept
+    wake.addEventListener&&wake.addEventListener("release",()=>{wake=null});return}}catch(e){wake=null}
   // terugval voor oudere iPhones: een onzichtbaar, stil filmpje in een lus houdt het scherm aan
   try{if(!nosleepVid){nosleepVid=document.createElement("video");nosleepVid.setAttribute("playsinline","");nosleepVid.setAttribute("muted","");nosleepVid.muted=true;nosleepVid.loop=true;
       nosleepVid.src=NOSLEEP_MP4;nosleepVid.style.cssText="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;bottom:0;left:0";document.body.appendChild(nosleepVid)}
     await nosleepVid.play();
-  }catch(e){toast("Scherm aan houden lukt hier niet; zet automatisch vergrendelen even uit")}
+  }catch(e){if(meldFout)toast("Scherm aan houden lukt hier niet; zet automatisch vergrendelen even uit")}
 }
 function releaseWake(){try{wake&&wake.release()}catch(e){}wake=null;try{nosleepVid&&nosleepVid.pause()}catch(e){}}
 document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState!=="visible")return;
-  if(cookOn&&cur&&!wake)requestWake();
+  if(document.visibilityState!=="visible"){releaseWake();return}
+  zorgWake();
   // het geluidskanaal kan tijdens je afwezigheid stilgelegd zijn; opnieuw wekken en
   // de alarmen opnieuw inplannen, want de audioklok liep ondertussen niet door
   unlockAudio();
@@ -4348,8 +4377,8 @@ $("#shopnew").oninput=renderSug;
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.9.36", APP_DATE="2026-09-30";
-const APP_LOG=["Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen","Op de receptpagina zie je naar welke site de link gaat","Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen","Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten","Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen","Recepten op de boodschappenlijst zijn duidelijk aantikbaar","Timers lopen door als je de app verlaat en gaan ook dan af","Lopende timers overleven het afsluiten van de app","Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.10.2", APP_DATE="2026-10-05";
+const APP_LOG=["Het scherm blijft aan zolang de app openstaat, niet alleen in de kookmodus","Het e-mailadres van de beheerder staat niet meer leesbaar in de app","Beheer: je beheerders-id voor de databaseregels staat bij Gezinsleden","Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen","Op de receptpagina zie je naar welke site de link gaat","Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen","Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten","Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen","Recepten op de boodschappenlijst zijn duidelijk aantikbaar","Timers lopen door als je de app verlaat en gaan ook dan af","Lopende timers overleven het afsluiten van de app","Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
@@ -4564,7 +4593,8 @@ $$("nav.tabs button").forEach(b=>b.onclick=()=>{
   window.scrollTo(0,0);
 });
 
-zoekTip();laadTimers();toonTimerDoor();
+zoekTip();laadTimers();toonTimerDoor();toonWake();zorgWake();
+["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev,()=>zorgWake(),{once:true,passive:true}));
 // na een herstart mag het geluid pas na een aanraking; dan zetten we de alarmen alsnog klaar
 if(timers.length&&!audioCtx)["pointerdown","keydown"].forEach(ev=>
   document.addEventListener(ev,()=>unlockAudio(),{once:true,passive:true}));

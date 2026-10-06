@@ -1,7 +1,8 @@
 {
-  "version": "26.10.2",
-  "datum": "2026-10-05",
+  "version": "26.10.3",
+  "datum": "2026-10-06",
   "notities": [
-    "Het scherm blijft aan zolang de app openstaat, niet alleen in de kookmodus"
+    "Zet een recept op het menu; het staat bovenaan bij Recepten en het gezin ziet het",
+    "Afvinken als gemaakt haalt een recept automatisch van het menu"
   ]
 }
