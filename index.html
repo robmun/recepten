@@ -2556,14 +2556,18 @@ async function opschonen(stil){
     return weg;
   }catch(e){if(!stil)cloudErr("Opruimen",e);console.error(e);return 0}
 }
+// De persoonlijke laag van het gezin: vier documenten, dus die halen we in hun geheel op.
+// Eerder werd alleen opgehaald wat nieuwer was dan de vorige keer, maar bij het opstarten
+// was er nog niets om op voort te bouwen — dan waren notities, duimen, cijfers en het menu
+// uit beeld tot iemand iets veranderde. Met vier documenten is een volledige lezing goedkoop,
+// en de plaatselijke opslag van Firestore serveert hem meteen, ook zonder internet.
 function watchGedeeld(){
   const F=CLOUD.F;
-  const q=F.query(F.collection(CLOUD.db,"gedeeld"),F.where("updatedAt",">",F.Timestamp.fromMillis(CLOUD.gsync||0)));
-  CLOUD.unsub.push(F.onSnapshot(q,snap=>{
-    let max=CLOUD.gsync||0,ch=0;
+  CLOUD.unsub.push(F.onSnapshot(F.collection(CLOUD.db,"gedeeld"),snap=>{
+    let ch=0;
     snap.docChanges().forEach(c=>{
       const d=c.doc.data({serverTimestamps:"estimate"}),uid=c.doc.id;
-      if(!c.doc.metadata.hasPendingWrites){const t=tsMs(d.updatedAt);if(t>max)max=t}
+      if(c.type==="removed"){delete CLOUD.gedeeld[uid];ch++;return}
       const eigen=uid===mijnUid();
       const oud=CLOUD.gedeeld[uid]||{};
       // wat we zelf net deden niet overschrijven met een oudere serverversie
@@ -2572,7 +2576,6 @@ function watchGedeeld(){
         notities:samen("notities"),likes:samen("likes"),gemaakt:samen("gemaakt"),cijfers:samen("cijfers"),menu:samen("menu")};
       ch++;
     });
-    if(max>(CLOUD.gsync||0)){CLOUD.gsync=max;store.set("cloudgsync",max)}
     if(ch){renderList();renderFavs();if(cur&&!$("#editor").classList.contains("open")&&!(document.activeElement&&document.activeElement.id==="dnotes"))renderDetail()}
   },e=>console.error("gedeeld",e)));
 }
@@ -3078,9 +3081,13 @@ $$("[data-theme-set]").forEach(b=>b.onclick=()=>{store.set("theme",b.dataset.the
 function toonWake(){
   const b=$("#wakeaan"),p=$("#wakeaantxt");if(!b)return;
   b.classList.toggle("on",wakeAan);b.setAttribute("aria-pressed",String(wakeAan));
-  p.textContent=wakeAan
-    ? "Aan: zolang de app voor je neus staat gaat het scherm niet vanzelf uit. Zwiep je de app weg of vergrendel je de telefoon, dan geldt je gewone instelling weer."
-    : "Uit: het scherm dimt gewoon volgens je telefooninstelling. In de kookmodus blijft het scherm hoe dan ook aan.";
+  const nu=wakeHoe==="slot"?"Werkt: het scherm wordt nu aangehouden."
+    :wakeHoe==="video"?"Werkt via de terugvalmethode: het scherm wordt nu aangehouden."
+    :wakeHoe==="nee"?"Lukt niet op dit toestel. Zet in de telefooninstellingen zelf Automatisch vergrendelen op Nooit als je kookt."
+    :"Staat nu uit.";
+  p.innerHTML=esc(nu)+"<br>"+esc(wakeAan
+    ? "Zolang de app voor je neus staat gaat het scherm niet vanzelf uit. Zwiep je de app weg of vergrendel je de telefoon, dan geldt je gewone instelling weer."
+    : "Het scherm dimt volgens je telefooninstelling. In de kookmodus blijft het scherm hoe dan ook aan.");
 }
 $("#wakeaan").onclick=()=>{wakeAan=!wakeAan;store.set("wakeaan",wakeAan);zorgWake();toonWake();
   toast(wakeAan?"Scherm blijft aan in de app":"Scherm dimt weer normaal")};
@@ -3565,23 +3572,25 @@ let nosleepVid=null, wakeBezig=false;
 let wakeAan=store.get("wakeaan",true); // scherm aanhouden zolang de app voor je neus staat
 // in de kookmodus blijft het scherm altijd aan, daarbuiten alleen als je dat wilt
 const wakeNodig=()=>document.visibilityState==="visible"&&(cookOn||wakeAan);
+let wakeHoe="";           // hoe het scherm wordt aangehouden: "" / "slot" / "video" / "nee"
 async function zorgWake(){
   if(wakeBezig)return;wakeBezig=true;
-  try{ if(wakeNodig())await requestWake(cookOn); else releaseWake(); }
-  finally{wakeBezig=false}
+  try{ if(wakeNodig())await requestWake(cookOn); else {releaseWake();wakeHoe=""} }
+  finally{wakeBezig=false;toonWake()}
 }
 async function requestWake(meldFout){
-  try{if(navigator.wakeLock){if(wake)return;
+  try{if(navigator.wakeLock){if(wake){wakeHoe="slot";return}
     wake=await navigator.wakeLock.request("screen");
+    wakeHoe="slot";
     // het toestel geeft de vergrendeling zelf vrij zodra je de app wegzwiept
-    wake.addEventListener&&wake.addEventListener("release",()=>{wake=null});return}}catch(e){wake=null}
+    wake.addEventListener&&wake.addEventListener("release",()=>{wake=null;wakeHoe="";toonWake()});return}}catch(e){wake=null}
   // terugval voor oudere iPhones: een onzichtbaar, stil filmpje in een lus houdt het scherm aan
   try{if(!nosleepVid){nosleepVid=document.createElement("video");nosleepVid.setAttribute("playsinline","");nosleepVid.setAttribute("muted","");nosleepVid.muted=true;nosleepVid.loop=true;
       nosleepVid.src=NOSLEEP_MP4;nosleepVid.style.cssText="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;bottom:0;left:0";document.body.appendChild(nosleepVid)}
-    await nosleepVid.play();
-  }catch(e){if(meldFout)toast("Scherm aan houden lukt hier niet; zet automatisch vergrendelen even uit")}
+    await nosleepVid.play();wakeHoe="video";
+  }catch(e){wakeHoe="nee";if(meldFout)toast("Scherm aan houden lukt hier niet; zet automatisch vergrendelen even uit")}
 }
-function releaseWake(){try{wake&&wake.release()}catch(e){}wake=null;try{nosleepVid&&nosleepVid.pause()}catch(e){}}
+function releaseWake(){try{wake&&wake.release()}catch(e){}wake=null;wakeHoe="";try{nosleepVid&&nosleepVid.pause()}catch(e){}}
 document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState!=="visible"){releaseWake();return}
   zorgWake();
@@ -4415,8 +4424,8 @@ $("#shopnew").oninput=renderSug;
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.10.3", APP_DATE="2026-10-06";
-const APP_LOG=["Zet een recept op het menu; het staat bovenaan bij Recepten en het gezin ziet het","Afvinken als gemaakt haalt een recept automatisch van het menu","Het scherm blijft aan zolang de app openstaat, niet alleen in de kookmodus","Het e-mailadres van de beheerder staat niet meer leesbaar in de app","Beheer: je beheerders-id voor de databaseregels staat bij Gezinsleden","Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen","Op de receptpagina zie je naar welke site de link gaat","Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen","Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten","Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen","Recepten op de boodschappenlijst zijn duidelijk aantikbaar","Timers lopen door als je de app verlaat en gaan ook dan af","Lopende timers overleven het afsluiten van de app","Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.10.4", APP_DATE="2026-10-06";
+const APP_LOG=["Notities, duimen, cijfers en het menu zijn na een herstart van de app weer meteen zichtbaar","Instellingen laat zien of het scherm echt wordt aangehouden","Zet een recept op het menu; het staat bovenaan bij Recepten en het gezin ziet het","Afvinken als gemaakt haalt een recept automatisch van het menu","Het scherm blijft aan zolang de app openstaat, niet alleen in de kookmodus","Het e-mailadres van de beheerder staat niet meer leesbaar in de app","Beheer: je beheerders-id voor de databaseregels staat bij Gezinsleden","Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen","Op de receptpagina zie je naar welke site de link gaat","Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen","Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten","Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen","Recepten op de boodschappenlijst zijn duidelijk aantikbaar","Timers lopen door als je de app verlaat en gaan ook dan af","Lopende timers overleven het afsluiten van de app","Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};
@@ -4632,7 +4641,10 @@ $$("nav.tabs button").forEach(b=>b.onclick=()=>{
 });
 
 zoekTip();laadTimers();toonTimerDoor();toonWake();zorgWake();
-["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev,()=>zorgWake(),{once:true,passive:true}));
+// zolang het nog niet gelukt is bij elke aanraking opnieuw proberen: Safari wil er soms een gebaar bij
+document.addEventListener("pointerdown",()=>{if(wakeNodig()&&!wake&&wakeHoe!=="video")zorgWake()},{passive:true});
+window.addEventListener("focus",()=>zorgWake());
+window.addEventListener("pageshow",()=>zorgWake());
 // na een herstart mag het geluid pas na een aanraking; dan zetten we de alarmen alsnog klaar
 if(timers.length&&!audioCtx)["pointerdown","keydown"].forEach(ev=>
   document.addEventListener(ev,()=>unlockAudio(),{once:true,passive:true}));
