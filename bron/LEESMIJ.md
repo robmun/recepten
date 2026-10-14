@@ -32,6 +32,18 @@ door GitHub Pages. Alles wat in de hoofdmap staat is wat de telefoons ophalen.
 Wijzigen de databaseregels? Dan die apart in de Firebase-console plakken **voordat**
 de nieuwe `index.html` live gaat, anders lopen de toestellen tegen een weigering aan.
 
+## Demo (kijkversie voor buitenstaanders)
+
+<https://robmun.github.io/recepten/demo/> is dezelfde app met 14 verzonnen recepten en een
+verzonnen gezin (Anna, Tom, Sophie). Er is geen login en hij praat niet met Firebase: een kleine
+database in de browser (`bron/demo/demo-backend.js`) en de nagemaakte Firebase uit de tests
+(`bron/test/fakefb-page.js`) nemen die plaats in. Het kookboek is alleen-lezen; favorieten,
+boodschappen en eigen notities blijven alleen in die browser. Alle opslag van de demo krijgt het
+voorvoegsel `demo_`, zodat hij de gegevens van de echte app op hetzelfde adres nooit raakt.
+
+Na elke nieuwe versie de demo meebouwen: `python3 bron/build.py && python3 bron/build_demo.py`.
+De voorbeeldrecepten staan in `bron/demo/recepten-demo.json`.
+
 ## Terugdraaien
 
 `git revert <commit>` en pushen. Omdat `index.html` één bestand is, is er nooit een
