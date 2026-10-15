@@ -33,6 +33,12 @@ service cloud.firestore {
 
     // Namen van de gezinsleden (uid -> voornaam), zodat iedereen ziet wie een recept toevoegde.
     // Alleen de beheerder schrijft dit lijstje bij.
+    // Wat we binnenkort eten: één lijstje voor het hele gezin. Dit is geen mening maar
+    // een afspraak, dus wie het erop zet maakt niet uit — iedereen mag het ook weer weghalen.
+    match /gezin/menu {
+      allow read, write: if lid();
+    }
+
     match /gezin/{doc} {
       allow read: if lid();
       allow create, delete: if beheerder();

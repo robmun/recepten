@@ -1,8 +1,8 @@
 {
-  "version": "26.10.3",
+  "version": "26.10.4",
   "datum": "2026-10-06",
   "notities": [
-    "Zet een recept op het menu; het staat bovenaan bij Recepten en het gezin ziet het",
-    "Afvinken als gemaakt haalt een recept automatisch van het menu"
+    "Notities, duimen, cijfers en het menu zijn na een herstart van de app weer meteen zichtbaar",
+    "Instellingen laat zien of het scherm echt wordt aangehouden"
   ]
 }

@@ -2363,7 +2363,7 @@ const isBeheerder=email=>mailHash(email)===ADMIN_HASH;
 const mailHash=s=>{s=String(s||"").trim().toLowerCase();let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0}return h.toString(36)};
 const CLOUD={on:!!(FIREBASE_CONFIG&&window.FB),F:null,auth:null,db:null,user:null,naam:"",isAdmin:false,
   cache:new Map(),sync:0,psync:0,gsync:0,unsub:[],justLoggedIn:false,status:"",privTimer:null,noteTimers:{},firstLoad:false,
-  gedeeld:{},leden:{}};
+  gedeeld:{},leden:{},menu:{}};
 const tsMs=t=>!t?0:typeof t==="number"?t:t.toMillis?t.toMillis():(t.seconds?t.seconds*1000:0);
 const naamVan=email=>{if(NAMEN[mailHash(email)])return NAMEN[mailHash(email)];const n=String(email||"").split("@")[0].replace(/munnichs|greuters/i,"")||String(email||"").split("@")[0];return n.charAt(0).toUpperCase()+n.slice(1)};
 function deviceId(){let d=store.get("device","");if(!d){d=(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2,10));store.set("device",d)}return d}
@@ -2511,7 +2511,7 @@ async function onCloudUser(u){
     return;
   }
   store.set("cloudUser",u.uid);
-  hideLogin();renderAccount();await CLOUD.cacheReady;startSync();loadPrivate();watchLeden();watchGedeeld();
+  hideLogin();renderAccount();await CLOUD.cacheReady;startSync();loadPrivate();watchLeden();watchGedeeld();watchMenu();
   if(CLOUD.isAdmin)syncLeden();else zetEigenNaam();
   setTimeout(checkBackupReminder,4000);
 }
@@ -2573,7 +2573,7 @@ function watchGedeeld(){
       // wat we zelf net deden niet overschrijven met een oudere serverversie
       const samen=k=>eigen?{...(d[k]||{}),...(oud[k]||{})}:(d[k]||{});
       CLOUD.gedeeld[uid]={naam:d.naam||oud.naam||"",
-        notities:samen("notities"),likes:samen("likes"),gemaakt:samen("gemaakt"),cijfers:samen("cijfers"),menu:samen("menu")};
+        notities:samen("notities"),likes:samen("likes"),gemaakt:samen("gemaakt"),cijfers:samen("cijfers")};
       ch++;
     });
     if(ch){renderList();renderFavs();if(cur&&!$("#editor").classList.contains("open")&&!(document.activeElement&&document.activeElement.id==="dnotes"))renderDetail()}
@@ -2860,7 +2860,7 @@ function renderAdmin(){
   if($("#a_migr"))$("#a_migr").onclick=()=>migrateLocal().then(renderAdmin);
   if($("#a_verhuis"))$("#a_verhuis").onclick=verhuisPersoonlijk;
   $("#a_check").onclick=async()=>{const b=$("#a_check");b.disabled=true;await opschonen(false);b.disabled=false;renderAdmin()};
-  $("#a_resync").onclick=()=>{if(!confirm("Alle recepten opnieuw uit de gedeelde database ophalen?"))return;CLOUD.cache.clear();CLOUD.sync=0;CLOUD.psync=0;CLOUD.gsync=0;CLOUD.gedeeld={};store.set("cloudpsync",0);store.set("cloudgsync",0);persistCache();refreshAll();startSync();toast("Alles wordt opnieuw opgehaald")};
+  $("#a_resync").onclick=()=>{if(!confirm("Alle recepten opnieuw uit de gedeelde database ophalen?"))return;CLOUD.cache.clear();CLOUD.sync=0;CLOUD.psync=0;CLOUD.gsync=0;CLOUD.gedeeld={};CLOUD.menu={};store.set("cloudpsync",0);store.set("cloudgsync",0);persistCache();refreshAll();startSync();toast("Alles wordt opnieuw opgehaald")};
   renderActivity();
   loadUsers().then(()=>{const n=$("#a_nusers");if(n)n.textContent=Object.keys(CLOUD.userNames||{}).length;syncLeden()});
 }
@@ -3384,7 +3384,7 @@ function toggleGemaakt(id,datum){
   }
   const laatst=nu&&nu.laatst&&String(nu.laatst)>dag?nu.laatst:dag;
   schrijfGemaakt(id,{n:(nu&&nu.n||0)+1,laatst});
-  const afVanMenu=mijnMenu(id);
+  const afVanMenu=opMenu(id);
   if(afVanMenu)schrijfMenu(id,false,true); // gegeten is van het menu af
   toast((datum?"Genoteerd op "+datumKort(dag):"Genoteerd: vandaag gemaakt")+(afVanMenu?" · van het menu af":""));
 }
@@ -3397,31 +3397,47 @@ function gemaaktMenu(id){
   toggleGemaakt(id,d.trim());
 }
 // ---------- op het menu: wat we binnenkort eten ----------
-// Blijft staan als je de boodschappenlijst leeggooit, en gaat er vanzelf af
-// zodra je het gerecht als gemaakt afvinkt.
-const menuVan=(uid,id)=>!!(gedeeldVan(uid).menu||{})[id];
-const mijnMenu=id=>menuVan(mijnUid(),id);
-const menuUids=id=>Object.keys(CLOUD.gedeeld||{}).filter(uid=>menuVan(uid,id));
-const opMenu=id=>menuUids(id).length>0;
+// Dit is geen persoonlijke mening maar één afspraak voor het hele gezin: er is één
+// avondeten. Het staat daarom in één gedeeld document (gezin/menu) en niet, zoals de
+// notities en de cijfers, bij ieder gezinslid apart. Wie het erop zette zie je er wel bij,
+// maar iedereen kan het er ook weer af halen.
+const opMenu=id=>!!(CLOUD.menu||{})[id];
+const menuDoor=id=>((CLOUD.menu||{})[id]||{}).door||"";
 function menuTekst(id){
-  const anderen=menuUids(id).filter(u=>u!==mijnUid()).map(naamUid).filter(Boolean);
-  if(!anderen.length)return "";
-  if(anderen.length===1)return anderen[0]+" zette dit op het menu";
-  return anderen.slice(0,-1).join(", ")+" en "+anderen[anderen.length-1]+" zetten dit op het menu";
+  if(!opMenu(id))return "";
+  const uid=menuDoor(id);
+  if(!uid)return "Staat op het menu";
+  return uid===mijnUid()?"Jij zette dit op het menu":(naamUid(uid)||"Iemand")+" zette dit op het menu";
+}
+function menuRef(){const F=CLOUD.F;return F.doc(CLOUD.db,"gezin","menu")}
+function watchMenu(){
+  const F=CLOUD.F;
+  CLOUD.unsub.push(F.onSnapshot(menuRef(),snap=>{
+    const d=snap.exists()?snap.data():{};
+    const m={};
+    Object.entries(d).forEach(([k,v])=>{if(v&&typeof v==="object")m[k]=v});
+    CLOUD.menu=m;
+    renderList();renderFavs();
+    if(cur&&!$("#editor").classList.contains("open")&&!(document.activeElement&&document.activeElement.id==="dnotes"))renderDetail();
+  },e=>console.error("menu",e)));
 }
 function schrijfMenu(id,aan,stil){
   if(!CLOUD.on||!CLOUD.user)return;
-  const uid=mijnUid(),F=CLOUD.F;
-  const g=CLOUD.gedeeld[uid]=CLOUD.gedeeld[uid]||{naam:CLOUD.naam,notities:{},likes:{},gemaakt:{},cijfers:{},menu:{}};
-  g.menu=g.menu||{};g.menu[id]=aan;
-  cloudWrite(F.setDoc(F.doc(CLOUD.db,"gedeeld",uid),{naam:CLOUD.naam,menu:{[id]:aan},updatedAt:F.serverTimestamp()},{merge:true}),"Menu opslaan");
+  const F=CLOUD.F;
+  const waarde=aan?{door:mijnUid(),op:Date.now()}:null;
+  CLOUD.menu=CLOUD.menu||{};
+  if(aan)CLOUD.menu[id]=waarde;else delete CLOUD.menu[id];
+  cloudWrite(F.setDoc(menuRef(),{[id]:waarde},{merge:true}),"Menu opslaan");
   if(!stil){refreshAll();if(cur&&cur.r.id===id)renderDetail()}
 }
 function toggleMenu(id){
   if(!CLOUD.on||!CLOUD.user){toast("Werkt alleen als je bent ingelogd");return}
-  const aan=!mijnMenu(id);
+  const aan=!opMenu(id);
+  const vanWie=aan?"":menuDoor(id);
   schrijfMenu(id,aan);
-  toast(aan?"Op het menu gezet":"Van het menu gehaald");
+  toast(aan?"Op het menu gezet"
+        :vanWie&&vanWie!==mijnUid()?"Van het menu gehaald (stond erop van "+(naamUid(vanWie)||"iemand")+")"
+        :"Van het menu gehaald");
 }
 // ---------- persoonlijk cijfer (1 t/m 10) ----------
 // Van jou, maar het hele gezin mag het zien — net als de notities en de duimen.
@@ -3507,7 +3523,7 @@ function renderDetail(){
       <div class="duimrow">
         <button class="cookbtn ${ikDuim(r)?"on":""}" id="ddu" aria-pressed="${ikDuim(r)}">${ico("thumb")} ${ikDuim(r)?"Vind ik lekker":"Lekker!"}</button>
         <button class="cookbtn ${mijnGemaakt(r.id)?"on":""}" id="dgem">${ico("check")} ${mijnGemaakt(r.id)?"Gemaakt":"Gemaakt?"}</button>
-        <button class="cookbtn ${mijnMenu(r.id)?"on":""}" id="dmenu" aria-pressed="${mijnMenu(r.id)}">${ico("menu")} ${mijnMenu(r.id)?"Op het menu":"Op het menu?"}</button>
+        <button class="cookbtn ${opMenu(r.id)?"on":""}" id="dmenu" aria-pressed="${opMenu(r.id)}">${ico("menu")} ${opMenu(r.id)?"Op het menu":"Op het menu?"}</button>
       </div>
       ${duimTekst(r)||gemaaktTekst(r.id)||menuTekst(r.id)?`<p class="duimtxt" style="margin:2px 0 0">${esc([duimTekst(r),gemaaktTekst(r.id),menuTekst(r.id)].filter(Boolean).join(" · "))}</p>`:""}
       ${mijnGemaakt(r.id)?`<p class="hint" style="margin:2px 0 0"><button class="lnk" id="dgemfix">datum aanpassen of wissen</button></p>`:""}
@@ -4424,8 +4440,8 @@ $("#shopnew").oninput=renderSug;
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.10.4", APP_DATE="2026-10-06";
-const APP_LOG=["Notities, duimen, cijfers en het menu zijn na een herstart van de app weer meteen zichtbaar","Instellingen laat zien of het scherm echt wordt aangehouden","Zet een recept op het menu; het staat bovenaan bij Recepten en het gezin ziet het","Afvinken als gemaakt haalt een recept automatisch van het menu","Het scherm blijft aan zolang de app openstaat, niet alleen in de kookmodus","Het e-mailadres van de beheerder staat niet meer leesbaar in de app","Beheer: je beheerders-id voor de databaseregels staat bij Gezinsleden","Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen","Op de receptpagina zie je naar welke site de link gaat","Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen","Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten","Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen","Recepten op de boodschappenlijst zijn duidelijk aantikbaar","Timers lopen door als je de app verlaat en gaan ook dan af","Lopende timers overleven het afsluiten van de app","Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.10.5", APP_DATE="2026-10-15";
+const APP_LOG=["Het menu is nu één lijstje voor het hele gezin: iedereen kan er een recept af halen, ook als een ander het erop zette","Notities, duimen, cijfers en het menu zijn na een herstart van de app weer meteen zichtbaar","Instellingen laat zien of het scherm echt wordt aangehouden","Zet een recept op het menu; het staat bovenaan bij Recepten en het gezin ziet het","Afvinken als gemaakt haalt een recept automatisch van het menu","Het scherm blijft aan zolang de app openstaat, niet alleen in de kookmodus","Het e-mailadres van de beheerder staat niet meer leesbaar in de app","Beheer: je beheerders-id voor de databaseregels staat bij Gezinsleden","Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen","Op de receptpagina zie je naar welke site de link gaat","Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen","Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten","Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen","Recepten op de boodschappenlijst zijn duidelijk aantikbaar","Timers lopen door als je de app verlaat en gaan ook dan af","Lopende timers overleven het afsluiten van de app","Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};

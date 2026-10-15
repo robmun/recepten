@@ -32,18 +32,6 @@ door GitHub Pages. Alles wat in de hoofdmap staat is wat de telefoons ophalen.
 Wijzigen de databaseregels? Dan die apart in de Firebase-console plakken **voordat**
 de nieuwe `index.html` live gaat, anders lopen de toestellen tegen een weigering aan.
 
-## Demo (kijkversie voor buitenstaanders)
-
-<https://robmun.github.io/recepten/demo/> is dezelfde app met 14 verzonnen recepten en een
-verzonnen gezin (Anna, Tom, Sophie). Er is geen login en hij praat niet met Firebase: een kleine
-database in de browser (`bron/demo/demo-backend.js`) en de nagemaakte Firebase uit de tests
-(`bron/test/fakefb-page.js`) nemen die plaats in. Het kookboek is alleen-lezen; favorieten,
-boodschappen en eigen notities blijven alleen in die browser. Alle opslag van de demo krijgt het
-voorvoegsel `demo_`, zodat hij de gegevens van de echte app op hetzelfde adres nooit raakt.
-
-Na elke nieuwe versie de demo meebouwen: `python3 bron/build.py && python3 bron/build_demo.py`.
-De voorbeeldrecepten staan in `bron/demo/recepten-demo.json`.
-
 ## Terugdraaien
 
 `git revert <commit>` en pushen. Omdat `index.html` één bestand is, is er nooit een
@@ -66,7 +54,9 @@ node <test>.js                   # in een tweede terminal
 - Firebase-project `recepten-7d212`, gratis Spark-plan. Aanmelden staat uit: nieuwe
   gezinsleden worden in de Firebase-console aangemaakt.
 - Gedeeld zijn: de recepten (`recipes`), de foto's (`photos`, `thumbs`) en de
-  persoonlijke laag die iedereen mag zien (`gedeeld/{uid}`: notities, duimen, gemaakt).
+  persoonlijke laag die iedereen mag zien (`gedeeld/{uid}`: notities, duimen, gemaakt, cijfers).
+- Het menu staat apart in `gezin/menu`: geen mening maar één afspraak voor het hele gezin,
+  dus iedereen mag er een recept op zetten én er weer af halen.
 - Privé zijn: favorieten, de boodschappenlijst en de volgorde van de winkelroute
   (`users/{uid}/prive/data`).
 - Geen enkel e-mailadres staat leesbaar in de code: de app herkent gezinsleden aan een

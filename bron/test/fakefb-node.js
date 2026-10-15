@@ -14,6 +14,7 @@ module.exports=function(){
       if(!member(uid))return "permission-denied";if(p[0]==="recipes"&&newData.updatedBy!==uid)return "permission-denied";return null}
     if(p[0]==="gedeeld"){if(op==="read")return member(uid)?null:"permission-denied";
       return (uid===ADMIN||p[1]===uid)?null:"permission-denied"}
+    if(p[0]==="gezin"&&p[1]==="menu"){return member(uid)?null:"permission-denied"}
     if(p[0]==="gezin"){if(op==="read")return member(uid)?null:"permission-denied";
       if(uid===ADMIN)return null;if(!member(uid))return "permission-denied";
       if(!old)return "permission-denied";
