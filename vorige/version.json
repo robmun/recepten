@@ -1,8 +1,7 @@
 {
-  "version": "26.10.4",
-  "datum": "2026-10-06",
+  "version": "26.10.5",
+  "datum": "2026-10-15",
   "notities": [
-    "Notities, duimen, cijfers en het menu zijn na een herstart van de app weer meteen zichtbaar",
-    "Instellingen laat zien of het scherm echt wordt aangehouden"
+    "Het menu is nu één lijstje voor het hele gezin: iedereen kan er een recept af halen, ook als een ander het erop zette"
   ]
 }
