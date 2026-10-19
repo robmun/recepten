@@ -1,7 +1,7 @@
 {
-  "version": "26.10.6",
-  "datum": "2026-10-18",
+  "version": "26.10.7",
+  "datum": "2026-10-19",
   "notities": [
-    "Eigen knop Sorteren naast Filters, met zeven manieren waaronder op naam, datum en wie het toevoegde"
+    "Sorteren en Filters zien er nu hetzelfde uit: compacte knoppen in een raster, gelijke lettergrootte"
   ]
 }
