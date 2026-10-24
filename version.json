@@ -1,7 +1,7 @@
 {
-  "version": "26.10.8",
-  "datum": "2026-10-20",
+  "version": "26.10.9",
+  "datum": "2026-10-24",
   "notities": [
-    "Een recept kan nu meerdere types hebben, bijvoorbeeld Lunch én Hoofdgerecht"
+    "Nieuw type gerecht: Salade"
   ]
 }

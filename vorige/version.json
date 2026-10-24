@@ -1,7 +1,7 @@
 {
-  "version": "26.10.7",
-  "datum": "2026-10-19",
+  "version": "26.10.8",
+  "datum": "2026-10-20",
   "notities": [
-    "Sorteren en Filters zien er nu hetzelfde uit: compacte knoppen in een raster, gelijke lettergrootte"
+    "Een recept kan nu meerdere types hebben, bijvoorbeeld Lunch én Hoofdgerecht"
   ]
 }
