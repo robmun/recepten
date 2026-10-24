@@ -1,8 +1,8 @@
 {
-  "version": "26.10.12",
+  "version": "26.10.13",
   "datum": "2026-10-24",
   "notities": [
-    "Bronnen filteren met vinkjes: alles behalve een of meer bronnen, of juist alleen één bron",
-    "Je bronkeuze wordt op dit toestel onthouden"
+    "Het overzicht is veel sneller: eerst de bovenste recepten, de rest als je scrolt",
+    "Een ster zetten laat je op je plek in de lijst staan"
   ]
 }
