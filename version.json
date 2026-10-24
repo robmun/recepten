@@ -1,8 +1,8 @@
 {
-  "version": "26.10.11",
+  "version": "26.10.12",
   "datum": "2026-10-24",
   "notities": [
-    "Foto's lezen gebruikt tot 24 november Gemini Flash-Lite (veel ruimere gratis limiet)",
-    "Is de limiet van één model op, dan probeert de app het volgende"
+    "Bronnen filteren met vinkjes: alles behalve een of meer bronnen, of juist alleen één bron",
+    "Je bronkeuze wordt op dit toestel onthouden"
   ]
 }
