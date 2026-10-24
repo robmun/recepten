@@ -1,7 +1,7 @@
 {
-  "version": "26.10.9",
+  "version": "26.10.10",
   "datum": "2026-10-24",
   "notities": [
-    "Nieuw type gerecht: Salade"
+    "In Beheer: een type toevoegen aan alle recepten met een bepaald woord in de titel"
   ]
 }
