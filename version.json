@@ -1,8 +1,8 @@
 {
-  "version": "26.10.14",
-  "datum": "2026-10-25",
+  "version": "26.10.15",
+  "datum": "2026-10-27",
   "notities": [
-    "Nieuw filter Vegetarisch: alleen recepten zonder vlees of vis, uit alle bronnen",
-    "De app kijkt naar het label en anders naar de ingrediënten"
+    "Boodschappenlijst: een verplaatst product blijft staan waar je het loslaat, ook tussen de nieuwe producten bovenaan",
+    "De geleerde volgorde uit eerdere lijsten blijft daarbij heel"
   ]
 }
