@@ -1,8 +1,8 @@
 {
-  "version": "26.10.13",
-  "datum": "2026-10-24",
+  "version": "26.10.14",
+  "datum": "2026-10-25",
   "notities": [
-    "Het overzicht is veel sneller: eerst de bovenste recepten, de rest als je scrolt",
-    "Een ster zetten laat je op je plek in de lijst staan"
+    "Nieuw filter Vegetarisch: alleen recepten zonder vlees of vis, uit alle bronnen",
+    "De app kijkt naar het label en anders naar de ingrediënten"
   ]
 }
