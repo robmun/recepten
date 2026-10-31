@@ -1,8 +1,8 @@
 {
-  "version": "26.10.16",
+  "version": "26.10.17",
   "datum": "2026-10-31",
   "notities": [
-    "Foto's die niet in de gedeelde database aankwamen, worden alsnog gedeeld",
-    "Sluit je de app terwijl er nog iets onderweg is, dan vraagt de browser of je dat zeker weet"
+    "Het nakijken van foto's is zichtbaar onder Instellingen › Account, met een teller en een uitslag",
+    "Een bewust verwijderde foto wordt niet opnieuw gedeeld"
   ]
 }

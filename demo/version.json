@@ -1,8 +1,8 @@
 {
-  "version": "26.10.15",
-  "datum": "2026-10-27",
+  "version": "26.10.16",
+  "datum": "2026-10-31",
   "notities": [
-    "Boodschappenlijst: een verplaatst product blijft staan waar je het loslaat, ook tussen de nieuwe producten bovenaan",
-    "De geleerde volgorde uit eerdere lijsten blijft daarbij heel"
+    "Foto's die niet in de gedeelde database aankwamen, worden alsnog gedeeld",
+    "Sluit je de app terwijl er nog iets onderweg is, dan vraagt de browser of je dat zeker weet"
   ]
 }
