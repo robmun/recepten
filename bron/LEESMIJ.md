@@ -62,5 +62,9 @@ node <test>.js                   # in een tweede terminal
 - Geen enkel e-mailadres staat leesbaar in de code: de app herkent gezinsleden aan een
   korte code (FNV-hash) van hun adres, en de databaseregels herkennen de beheerder aan
   zijn Firebase-gebruikers-id. Dat id staat in de app onder Instellingen › Beheer › Gezinsleden.
+- Voornamen koppelt de beheerder in de app (Beheer › Namen). Ze staan in `gezin/namen`
+  als code van het adres → voornaam; iedereen mag dat lezen (de app zoekt er bij het inloggen
+  de eigen naam in op), alleen de beheerder mag het wijzigen. `NAMEN` in de code is alleen
+  het beginlijstje dat de eerste keer is overgezet (`_overgezet: true`).
 - De map `bron/` wordt door GitHub Pages ook uitgeserveerd. Dat is geen bezwaar —
   het is dezelfde code die in `index.html` staat — maar zet er dus nooit sleutels in.

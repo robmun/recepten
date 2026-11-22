@@ -2414,7 +2414,17 @@ const CLOUD={on:!!(FIREBASE_CONFIG&&window.FB),F:null,auth:null,db:null,user:nul
   cache:new Map(),sync:0,psync:0,gsync:0,unsub:[],justLoggedIn:false,status:"",privTimer:null,noteTimers:{},firstLoad:false,
   gedeeld:{},leden:{},menu:{}};
 const tsMs=t=>!t?0:typeof t==="number"?t:t.toMillis?t.toMillis():(t.seconds?t.seconds*1000:0);
-const naamVan=email=>{if(NAMEN[mailHash(email)])return NAMEN[mailHash(email)];const n=String(email||"").split("@")[0].replace(/munnichs|greuters/i,"")||String(email||"").split("@")[0];return n.charAt(0).toUpperCase()+n.slice(1)};
+const mailNaam=email=>{const n=String(email||"").split("@")[0].replace(/munnichs|greuters/i,"")||String(email||"").split("@")[0];return n.charAt(0).toUpperCase()+n.slice(1)};
+// Namen koppelt de beheerder in de app (Beheer › Namen); ze staan in gezin/namen als code van het adres -> voornaam.
+// NAMEN hierboven is alleen het beginlijstje: zolang dat nog niet is overgezet, telt het mee.
+const namenLijst=m=>m&&m._overgezet?m:{...NAMEN,...(m||{})};
+const naamVan=email=>namenLijst(store.get("namen",null))[mailHash(email)]||mailNaam(email);
+async function haalNamen(ms){
+  const F=CLOUD.F;
+  try{const s=await Promise.race([F.getDoc(F.doc(CLOUD.db,"gezin","namen")),new Promise((_,nee)=>setTimeout(()=>nee(new Error("te traag")),ms))]);
+    const m=s.exists()?s.data():{};store.set("namen",m);return m}
+  catch(e){return null}
+}
 function deviceId(){let d=store.get("device","");if(!d){d=(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2,10));store.set("device",d)}return d}
 function deviceInfo(){const u=navigator.userAgent;const t=/iPhone/.test(u)?"iPhone":/iPad/.test(u)?"iPad":/Android/.test(u)?"Android":/Macintosh/.test(u)?"Mac":/Windows/.test(u)?"Windows":"Onbekend";
   const app=(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone;return t+(app?" (app)":" (browser)")}
@@ -2530,6 +2540,7 @@ function initCloud(){
 async function onCloudUser(u){
   const F=CLOUD.F,db=CLOUD.db;
   if(!u){CLOUD.user=null;stopSync();store.set("cloudUser","");showLogin(CLOUD.pendingMsg||"");CLOUD.pendingMsg="";renderAccount();return}
+  if(CLOUD.justLoggedIn)await haalNamen(4000);
   CLOUD.user=u;CLOUD.naam=naamVan(u.email);CLOUD.isAdmin=isBeheerder(u.email);
   const ref=F.doc(db,"users",u.uid);let res="ok";
   try{
@@ -2562,6 +2573,8 @@ async function onCloudUser(u){
   store.set("cloudUser",u.uid);
   hideLogin();renderAccount();await CLOUD.cacheReady;startSync();loadPrivate();watchLeden();watchGedeeld();watchMenu();
   if(CLOUD.isAdmin)syncLeden();else zetEigenNaam();
+  haalNamen(10000).then(m=>{if(!m||!CLOUD.user||CLOUD.user.uid!==u.uid)return;const n=naamVan(u.email);if(n===CLOUD.naam)return;
+    CLOUD.naam=n;renderAccount();F.updateDoc(F.doc(db,"users",u.uid),{naam:n}).catch(()=>{});if(!CLOUD.isAdmin)zetEigenNaam()});
   setTimeout(checkBackupReminder,4000);
 }
 // namen van de gezinsleden: de beheerder zet ze in één gedeeld document, iedereen leest ze
@@ -2867,10 +2880,10 @@ async function loadUsers(){
   const F=CLOUD.F;const el=$("#a_users");if(!el)return;el.innerHTML='<p class="hint">Laden…</p>';
   try{const s=await F.getDocs(F.collection(CLOUD.db,"users"));const rows=[];s.forEach(d=>rows.push({uid:d.id,...d.data()}));
     rows.sort((a,b)=>String(a.naam).localeCompare(String(b.naam),"nl"));
-    CLOUD.userNames=Object.fromEntries(rows.map(u=>[u.uid,u.naam||"?"]));
+    CLOUD.userNames=Object.fromEntries(rows.map(u=>[u.uid,u.naam||"?"]));CLOUD.usersRows=rows;
     el.innerHTML=rows.length?rows.map(u=>`<div class="urow"><div><b>${esc(u.naam||"?")}</b><span class="hint">${isBeheerder(u.email)?`💻📱 Meerdere toestellen (beheerder) · laatst op ${esc(u.deviceInfo||"toestel")}`:u.deviceId?`📱 ${esc(u.deviceInfo||"toestel")} · gekoppeld ${dtNL(u.gekoppeldOp)}`:"Geen toestel gekoppeld"}<br>Laatst gezien ${dtNL(u.laatstGezien)} · versie ${esc(u.appVersie||"–")}${u.appVersie&&cmpVer(u.appVersie,APP_VERSION)<0?" ⚠︎ verouderd":""}</span></div>
       <div class="btns">${u.deviceId&&!isBeheerder(u.email)?`<button class="btn ghost" data-reset="${esc(u.uid)}" data-naam="${esc(u.naam||"")}">Ontkoppel</button>`:""}${u.email?`<button class="btn ghost" data-mail="${esc(u.email)}" data-naam="${esc(u.naam||"")}">Resetmail</button>`:""}</div></div>`).join("")+
-      `<p class="hint" style="margin-top:8px">Nieuwe gezinsleden maak je aan in de Firebase-console › Authentication › Users, met hun eigen e-mailadres. Ze verschijnen hier na hun eerste keer inloggen.</p>
+      `<p class="hint" style="margin-top:8px">Nieuwe gebruikers maak je aan in de Firebase-console › Authentication › Users, met hun eigen e-mailadres. Geef ze daarna hieronder bij Namen een voornaam. Ze verschijnen hier na hun eerste keer inloggen.</p>
       <p class="hint" style="margin-top:8px">Jouw beheerders-id voor de databaseregels: <b id="a_uid">${esc(mijnUid())}</b> <button class="lnk" id="a_uidkopie">kopieer de regel</button></p>`
       :'<p class="hint">Nog niemand ingelogd.</p>';
     if($("#a_uidkopie"))$("#a_uidkopie").onclick=()=>
@@ -2883,6 +2896,51 @@ async function loadUsers(){
       try{await F.sendPasswordResetEmail(CLOUD.auth,b.dataset.mail);toast("Mail verstuurd naar "+b.dataset.naam)}catch(e){toast(loginFout(e))}});
     renderActivity();
   }catch(e){el.innerHTML=`<p class="hint">Kon gebruikers niet laden (${esc(e.code||e.message)}).</p>`}
+}
+// ---------- namen (alleen beheerder) ----------
+async function loadNamen(){
+  const F=CLOUD.F,el=$("#a_namen");if(!el)return;
+  let m=await haalNamen(8000);
+  if(!m){el.innerHTML='<p class="hint">Kon de namen niet laden. Probeer het later opnieuw.</p>';return}
+  if(!m._overgezet){m={...NAMEN,...m,_overgezet:true};
+    try{await F.setDoc(F.doc(CLOUD.db,"gezin","namen"),m);store.set("namen",m)}catch(e){cloudErr("Namen overzetten",e);return}}
+  // Het lijstje bewaart alleen de code van een adres. Welk adres erbij hoort, weten we van de gebruikers
+  // die al ingelogd zijn, of van wat de beheerder op dit toestel zelf heeft ingevuld.
+  const mails=store.get("namenMail",{});(CLOUD.usersRows||[]).forEach(u=>{if(u.email)mails[mailHash(u.email)]=u.email});
+  const rows=Object.entries(m).filter(([k,v])=>!k.startsWith("_")&&v).sort((a,b)=>String(a[1]).localeCompare(String(b[1]),"nl"));
+  el.innerHTML=rows.length?rows.map(([h,n])=>`<div class="urow"><div><b>${esc(n)}</b><span class="hint">${mails[h]?esc(mails[h]):"nog niet ingelogd"}</span></div>
+      <div class="btns" style="flex-wrap:nowrap"><button class="btn ghost" data-nwijzig="${esc(h)}" aria-label="Naam wijzigen" title="Wijzig">✏️</button><button class="btn ghost" data-nweg="${esc(h)}" aria-label="Naam verwijderen" title="Verwijder">🗑</button></div></div>`).join("")
+    :'<p class="hint">Nog geen namen.</p>';
+  $$("#a_namen [data-nwijzig]").forEach(b=>b.onclick=async()=>{const h=b.dataset.nwijzig,oud=m[h];
+    const n=(prompt(`Nieuwe naam voor ${oud}:`,oud)||"").trim().slice(0,30);if(!n||n===oud)return;
+    try{await zetNaam(h,n);toast(`${oud} heet nu ${n}`);loadUsers().then(loadNamen)}catch(e){cloudErr("Naam wijzigen",e)}});
+  $$("#a_namen [data-nweg]").forEach(b=>b.onclick=async()=>{const h=b.dataset.nweg,oud=m[h];
+    if(!confirm(`${oud} uit de lijst halen? De app maakt dan zelf een naam van het e-mailadres.`))return;
+    try{await zetNaam(h,"");toast(`${oud} uit de lijst gehaald`);loadUsers().then(loadNamen)}catch(e){cloudErr("Naam verwijderen",e)}});
+}
+async function zetNaam(h,naam){
+  const F=CLOUD.F;
+  const s=await F.getDoc(F.doc(CLOUD.db,"gezin","namen"));
+  const m={...(s.exists()?s.data():{})};if(!m._overgezet)Object.assign(m,{...NAMEN,...m});
+  if(naam)m[h]=naam;else delete m[h];m._overgezet=true;
+  await F.setDoc(F.doc(CLOUD.db,"gezin","namen"),m);store.set("namen",m);
+  // Is diegene al eens ingelogd, dan meteen overal bijwerken
+  const u=(CLOUD.usersRows||[]).find(x=>x.email&&mailHash(x.email)===h);
+  if(u){const nieuw=naamVan(u.email);
+    await F.updateDoc(F.doc(CLOUD.db,"users",u.uid),{naam:nieuw});
+    await F.setDoc(F.doc(CLOUD.db,"gezin","leden"),{[u.uid]:nieuw},{merge:true});
+    await F.updateDoc(F.doc(CLOUD.db,"gedeeld",u.uid),{naam:nieuw}).catch(()=>{});
+    if(u.uid===mijnUid()){CLOUD.naam=nieuw;renderAccount()}}
+}
+async function bewaarNaamForm(){
+  const mail=$("#n_mail").value.trim().toLowerCase(),naam=$("#n_naam").value.trim().slice(0,30);
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)){toast("Vul een geldig e-mailadres in");$("#n_mail").focus();return}
+  if(!naam){toast("Vul een voornaam in");$("#n_naam").focus();return}
+  const h=mailHash(mail),b=$("#n_save");b.disabled=true;
+  try{await zetNaam(h,naam);const mails=store.get("namenMail",{});mails[h]=mail;store.set("namenMail",mails);
+    $("#n_mail").value="";$("#n_naam").value="";toast(`${naam} gekoppeld aan ${mail}`);await loadUsers();await loadNamen()}
+  catch(e){cloudErr("Naam opslaan",e)}
+  b.disabled=false;
 }
 // ---------- beheerpagina ----------
 function openAdmin(){$("#admin").classList.add("open");$("#admin").scrollTop=0;document.body.style.overflow="hidden";history.pushState({adm:1},"");renderAdmin()}
@@ -2917,6 +2975,12 @@ function renderAdmin(){
         <div class="stat"><b id="a_nusers">–</b><span>gezinsleden</span></div>
       </div>
       <div class="box"><h4>👥 Gezinsleden</h4><div id="a_users"></div></div>
+      <div class="box"><h4>✏️ Namen</h4>
+        <p class="hint">Koppel een e-mailadres aan een voornaam. Dat kan al voordat iemand voor het eerst inlogt. Alleen jij ziet dit.</p>
+        <label class="field"><span>E-mailadres</span><input id="n_mail" type="email" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="naam@voorbeeld.nl"></label>
+        <label class="field"><span>Voornaam</span><input id="n_naam" maxlength="30" placeholder="Bijv. Marielle"></label>
+        <button class="btn" id="n_save" style="margin-top:4px">Naam opslaan</button>
+        <div id="a_namen" style="margin-top:10px"></div></div>
       <div class="box"><h4>🔎 Recepten nakijken</h4>
         ${grp("Zonder ingrediënten",zonderIng)}${grp("Zonder bereiding",zonderStap)}${grp("Zonder foto",zonderFoto)}
         ${grp("Zonder (geldig) type",zonderType,r=>esc(r.type||"leeg"))}${grp("Zonder bereidingstijd",zonderTijd)}
@@ -3002,7 +3066,8 @@ function renderAdmin(){
   $("#a_check").onclick=async()=>{const b=$("#a_check");b.disabled=true;await opschonen(false);b.disabled=false;renderAdmin()};
   $("#a_resync").onclick=()=>{if(!confirm("Alle recepten opnieuw uit de gedeelde database ophalen?"))return;CLOUD.cache.clear();CLOUD.sync=0;CLOUD.psync=0;CLOUD.gsync=0;CLOUD.gedeeld={};CLOUD.menu={};store.set("cloudpsync",0);store.set("cloudgsync",0);persistCache();refreshAll();startSync();toast("Alles wordt opnieuw opgehaald")};
   renderActivity();
-  loadUsers().then(()=>{const n=$("#a_nusers");if(n)n.textContent=Object.keys(CLOUD.userNames||{}).length;syncLeden()});
+  loadUsers().then(()=>{const n=$("#a_nusers");if(n)n.textContent=Object.keys(CLOUD.userNames||{}).length;syncLeden();loadNamen()});
+  $("#n_save").onclick=bewaarNaamForm;
 }
 const normT=t=>norm(t).replace(/[^a-z0-9]+/g," ").trim();
 function renderActivity(){
@@ -4138,7 +4203,8 @@ function parseText(text){
   return out;
 }
 window.__rb={parseHTML,parseText,parseIng,zetVolgorde,renderShop,shop:()=>shop, // (handig voor testen)
-  startTimer:(s,l)=>startTimer(s,l),timerInfo:()=>timers.map(t=>({af:t.af,left:t.left,nodes:(t.nodes||[]).length})),keepOn:()=>!!keepNode};
+  startTimer:(s,l)=>startTimer(s,l),timerInfo:()=>timers.map(t=>({af:t.af,left:t.left,nodes:(t.nodes||[]).length})),keepOn:()=>!!keepNode,
+  cloud:()=>CLOUD,zetNaam:(h,n)=>zetNaam(h,n),herlaadNamen:()=>loadUsers().then(loadNamen)};
 
 // ---------- recept uit een foto (Gemini via Firebase AI Logic) ----------
 // Tot AI_LITE_TOT eerst Flash-Lite (500 foto's/dag gratis), daarna weer eerst de nieuwste Flash (20/dag gratis).
@@ -4759,8 +4825,8 @@ $("#shopnew").oninput=renderSug;
 
 // ---------- versiebeheer & automatische updates ----------
 // Bij elke nieuwe versie: APP_VERSION + APP_DATE hieronder én version.json op GitHub aanpassen.
-const APP_VERSION="26.11.4", APP_DATE="2026-11-22";
-const APP_LOG=["Marielle staat met haar voornaam in de app","Saskia gekoppeld aan haar nieuwe mailadres en Des heet nu Desiree","Een gewijzigde naam wordt bij de volgende keer openen overal bijgewerkt","Guanita's naam hoort nu bij haar nieuwe mailadres","Saskia en Guanita staan met hun voornaam in de app","Een foto die een toestel ooit gemist heeft, wordt alsnog opgehaald: eens per dag vanzelf, en meteen bij Nu bijwerken","Het nakijken van foto's is zichtbaar onder Instellingen › Account, met een teller en aan het eind een uitslag. Een bewust verwijderde foto wordt niet opnieuw gedeeld","Foto's die niet in de gedeelde database aankwamen, worden alsnog gedeeld. Sluit je de app terwijl er nog iets onderweg is, dan vraagt de browser of je dat zeker weet","Boodschappenlijst: een verplaatst product blijft nu staan waar je het loslaat, ook tussen de nieuwe producten bovenaan. De geleerde volgorde uit eerdere lijsten blijft daarbij heel","Nieuw filter Vegetarisch: alleen recepten zonder vlees of vis, uit alle bronnen. De app kijkt naar het label en anders naar de ingrediënten","Het overzicht is veel sneller: de app tekent eerst de bovenste recepten en de rest als je scrolt","Bronnen filteren met vinkjes: alles behalve een of meer bronnen, of juist alleen één bron. Je keuze wordt onthouden","Foto's lezen gebruikt tot 24 november Gemini Flash-Lite (veel ruimere gratis limiet); is de limiet van één model op, dan probeert de app het volgende","In Beheer: een type toevoegen aan alle recepten met een bepaald woord in de titel","Nieuw type gerecht: Salade","Een recept kan nu meerdere types hebben, bijvoorbeeld Lunch én Hoofdgerecht","Sorteren en Filters zien er nu hetzelfde uit: compacte knoppen in een raster, gelijke lettergrootte","Eigen knop Sorteren naast Filters, met zeven manieren waaronder op naam, datum en wie het toevoegde","Het menu is nu één lijstje voor het hele gezin: iedereen kan er een recept af halen, ook als een ander het erop zette","Notities, duimen, cijfers en het menu zijn na een herstart van de app weer meteen zichtbaar","Instellingen laat zien of het scherm echt wordt aangehouden","Zet een recept op het menu; het staat bovenaan bij Recepten en het gezin ziet het","Afvinken als gemaakt haalt een recept automatisch van het menu","Het scherm blijft aan zolang de app openstaat, niet alleen in de kookmodus","Het e-mailadres van de beheerder staat niet meer leesbaar in de app","Beheer: je beheerders-id voor de databaseregels staat bij Gezinsleden","Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen","Op de receptpagina zie je naar welke site de link gaat","Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen","Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten","Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen","Recepten op de boodschappenlijst zijn duidelijk aantikbaar","Timers lopen door als je de app verlaat en gaan ook dan af","Lopende timers overleven het afsluiten van de app","Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
+const APP_VERSION="26.11.5", APP_DATE="2026-11-22";
+const APP_LOG=["Beheer › Namen: de beheerder koppelt zelf een e-mailadres aan een voornaam, ook vóór de eerste keer inloggen","Marielle staat met haar voornaam in de app","Saskia gekoppeld aan haar nieuwe mailadres en Des heet nu Desiree","Een gewijzigde naam wordt bij de volgende keer openen overal bijgewerkt","Guanita's naam hoort nu bij haar nieuwe mailadres","Saskia en Guanita staan met hun voornaam in de app","Een foto die een toestel ooit gemist heeft, wordt alsnog opgehaald: eens per dag vanzelf, en meteen bij Nu bijwerken","Het nakijken van foto's is zichtbaar onder Instellingen › Account, met een teller en aan het eind een uitslag. Een bewust verwijderde foto wordt niet opnieuw gedeeld","Foto's die niet in de gedeelde database aankwamen, worden alsnog gedeeld. Sluit je de app terwijl er nog iets onderweg is, dan vraagt de browser of je dat zeker weet","Boodschappenlijst: een verplaatst product blijft nu staan waar je het loslaat, ook tussen de nieuwe producten bovenaan. De geleerde volgorde uit eerdere lijsten blijft daarbij heel","Nieuw filter Vegetarisch: alleen recepten zonder vlees of vis, uit alle bronnen. De app kijkt naar het label en anders naar de ingrediënten","Het overzicht is veel sneller: de app tekent eerst de bovenste recepten en de rest als je scrolt","Bronnen filteren met vinkjes: alles behalve een of meer bronnen, of juist alleen één bron. Je keuze wordt onthouden","Foto's lezen gebruikt tot 24 november Gemini Flash-Lite (veel ruimere gratis limiet); is de limiet van één model op, dan probeert de app het volgende","In Beheer: een type toevoegen aan alle recepten met een bepaald woord in de titel","Nieuw type gerecht: Salade","Een recept kan nu meerdere types hebben, bijvoorbeeld Lunch én Hoofdgerecht","Sorteren en Filters zien er nu hetzelfde uit: compacte knoppen in een raster, gelijke lettergrootte","Eigen knop Sorteren naast Filters, met zeven manieren waaronder op naam, datum en wie het toevoegde","Het menu is nu één lijstje voor het hele gezin: iedereen kan er een recept af halen, ook als een ander het erop zette","Notities, duimen, cijfers en het menu zijn na een herstart van de app weer meteen zichtbaar","Instellingen laat zien of het scherm echt wordt aangehouden","Zet een recept op het menu; het staat bovenaan bij Recepten en het gezin ziet het","Afvinken als gemaakt haalt een recept automatisch van het menu","Het scherm blijft aan zolang de app openstaat, niet alleen in de kookmodus","Het e-mailadres van de beheerder staat niet meer leesbaar in de app","Beheer: je beheerders-id voor de databaseregels staat bij Gezinsleden","Duidelijker dat de link bij het recept bewaard blijft, ook zonder ophalen","Op de receptpagina zie je naar welke site de link gaat","Link die je eerder in je notitie plakte, kun je met één tik naar het linkveld halen","Recepten waarvan de boodschappen op de lijst staan, staan bovenaan bij Recepten","Eerder gekochte producten verschijnen terwijl je typt, in plaats van als rij knoppen","Recepten op de boodschappenlijst zijn duidelijk aantikbaar","Timers lopen door als je de app verlaat en gaan ook dan af","Lopende timers overleven het afsluiten van de app","Recepten uit Instagram en TikTok toevoegen via een schermafbeelding van het bijschrift","Geef gerechten een persoonlijk cijfer van 1 tot 10, zichtbaar voor het gezin","Filter en sorteer op cijfer; sorteren op A–Z is vervallen","Tip over zoeken met komma's blijft onder de zoekbalk staan","Boodschappenlijst: nieuwe producten komen bovenaan, jouw looproute blijft staan","Boodschappenlijst: tik op een recept om het te openen","Aangeven dat je een recept hebt gemaakt, met datum en teller","Filter op wel of niet gemaakt, en sorteren op lang niet gemaakt","Favorieten: derde tabblad met je kookgeschiedenis","Beheer: recepten die dezelfde foto delen, met een knop om de verkeerde foto weg te halen","Beheer: dubbele titels kun je meteen verwijderen","Rood nummertje bij favorieten weg","Zoeken op ingrediënten, met “je mist nog één ding”","Filter op labels zoals Vegetarisch","Foto's: kleine miniaturen op elk toestel, de grote foto pas als je een recept opent","Notities per gezinslid: iedereen ziet elkaars notitie, niemand overschrijft die van een ander","Duimen en notities staan los van het recept","Opslaan van een recept raakt alleen de receptvelden","Definitief gewiste recepten verdwijnen nu ook van toestellen die lang offline waren","Afgevinkte producten houden hun plek in jouw volgorde","Boodschappenlijst: opgepakte regel krijgt een duidelijke rand","Eerder gekochte producten kun je opruimen","Boodschappenlijst: slepen werkt nu ook met de vinger, of tik om te verplaatsen","Boodschappen zelf toevoegen, met suggesties uit wat je eerder kocht","Boodschappenlijst: sleep in jouw eigen volgorde, de app onthoudt hem","Kookboek maken: een selectie recepten als PDF of print","Familie Munnichs: eigen kop en welkomstscherm","Bij elk recept staat wie het heeft toegevoegd, met een filter per persoon","Gezinsfavorieten: tik op “Lekker!” en iedereen ziet het","Versienummer rechtgezet: jaar.maand.volgnummer","Rustiger receptenscherm: kleine kop met filterknop en filterlabels","Receptkaarten even groot, met de bereidingstijd op de foto","Getekende pictogrammen in plaats van emoji","Tekstgrootte staat nu bij Instellingen › Weergave","Wijzigingen zonder internet blijven bewaard en gaan later alsnog naar het gezin","Favorieten en boodschappenlijst lopen niet meer uit de pas tussen twee toestellen","Foto's raken niet meer kwijt als de opslag van het toestel vol zit","Op een laptop: grotere tekst, foto's en knoppen, zijbalk met grote pictogrammen","Kookmodus: tekst blijft staan, timers onder de stap","Beheerder kan op meerdere toestellen inloggen","Kookmodus: grotere tekst, scherm blijft aan en timers","Beheer: foto's veiligstellen en maandelijkse back-upherinnering","Beheer: ontbrekende bereidingstijden laten schatten","Instellingen in een nieuwe volgorde; Delen en de updateknop zijn verwijderd","Nieuw deelicoon bij een recept","Beheerpagina: gezinsleden, recepten nakijken, bronnen, activiteit, prullenbak en back-up","Foto's lezen beveiligd met App Check (reCAPTCHA)","Recepten blijven nu altijd op je toestel bewaard (grotere opslag)","Filters tijd, sortering en bron naast elkaar","Duidelijkere foutmelding bij het lezen van foto's","Recept maken vanaf een foto (bijv. uit een kookboek)","Knop ‘Terug naar origineel recept’ na aanpassen","Inloggen met je eigen e-mailadres, met 'Wachtwoord vergeten?'","Inloggen met wachtwoord; je account werkt op één toestel","Recepten, aanpassingen, notities en foto's worden gedeeld met het gezin","Favorieten en boodschappenlijst blijven persoonlijk","Beheer: toestellen van gezinsleden bekijken en ontkoppelen"];
 const MAAND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const datumNL=d=>{const [y,m,dd]=String(d).split("-").map(Number);return y&&m&&dd?`${dd} ${MAAND[m-1]} ${y}`:String(d||"")};
 const cmpVer=(a,b)=>{const x=String(a).split(".").map(Number),y=String(b).split(".").map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0?1:-1}return 0};

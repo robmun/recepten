@@ -3,7 +3,7 @@ module.exports=function(){
   // De testaccounts staan hier op de code van hun e-mailadres (dezelfde FNV-hash die de app
   // gebruikt), zodat er geen echte adressen in deze openbare repository staan.
   const code=s=>{s=String(s||"").trim().toLowerCase();let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0}return h.toString(36)};
-  const users={"g7inej":{pw:"geheim1",uid:"U_rob"},"1s0bet7":{pw:"geheim2",uid:"U_hel"},"ayspfp":{pw:"geheim3",uid:"U_jas"},"867uht":{pw:"geheim4",uid:"U_mau"}};
+  const users={"g7inej":{pw:"geheim1",uid:"U_rob"},"1s0bet7":{pw:"geheim2",uid:"U_hel"},"ayspfp":{pw:"geheim3",uid:"U_jas"},"867uht":{pw:"geheim4",uid:"U_mau"},[code("nieuw@voorbeeld.nl")]:{pw:"geheim5",uid:"U_nieuw"}};
   const docs=new Map();let ver=0;const ADMIN="U_rob";
   const resolve=(v,now)=>{if(v&&typeof v==="object"){if(v.__st)return{__ts:now};if(Array.isArray(v))return v.map(x=>resolve(x,now));const o={};for(const k in v)o[k]=resolve(v[k],now);return o}return v};
   const member=uid=>uid&&docs.has("users/"+uid);
@@ -15,7 +15,7 @@ module.exports=function(){
     if(p[0]==="gedeeld"){if(op==="read")return member(uid)?null:"permission-denied";
       return (uid===ADMIN||p[1]===uid)?null:"permission-denied"}
     if(p[0]==="gezin"&&p[1]==="menu"){return member(uid)?null:"permission-denied"}
-    if(p[0]==="gezin"){if(op==="read")return member(uid)?null:"permission-denied";
+    if(p[0]==="gezin"){if(op==="read")return null; // zoals lid() in firestore.rules: ingelogd is genoeg
       if(uid===ADMIN)return null;if(!member(uid))return "permission-denied";
       if(!old)return "permission-denied";
       const keys=Object.keys(newData).filter(k=>JSON.stringify(newData[k])!==JSON.stringify(old[k]));
