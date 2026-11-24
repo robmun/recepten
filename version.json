@@ -1,7 +1,7 @@
 {
-  "version": "26.11.6",
-  "datum": "2026-11-23",
+  "version": "26.11.7",
+  "datum": "2026-11-24",
   "notities": [
-    "Het menu onderin blijft zichtbaar als je een recept bekijkt, zodat je meteen naar je boodschappenlijst kunt"
+    "Beheer: gebruikers verwijderen, en een melding als een mailadres er twee keer staat"
   ]
 }

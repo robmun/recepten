@@ -66,5 +66,9 @@ node <test>.js                   # in een tweede terminal
   als code van het adres → voornaam; iedereen mag dat lezen (de app zoekt er bij het inloggen
   de eigen naam in op), alleen de beheerder mag het wijzigen. `NAMEN` in de code is alleen
   het beginlijstje dat de eerste keer is overgezet (`_overgezet: true`).
+- Iemand weghalen: eerst het account in de Firebase-console verwijderen, dan in Beheer ›
+  Gezinsleden op Verwijder (haalt `users/{uid}`, `gedeeld/{uid}` en de regel in `gezin/leden`
+  weg). Een webapp kan de lijst met Firebase-accounts niet inzien, dus dit gaat niet vanzelf.
+  `users/{uid}/prive` mag alleen de gebruiker zelf wissen en blijft dus onzichtbaar achter.
 - De map `bron/` wordt door GitHub Pages ook uitgeserveerd. Dat is geen bezwaar —
   het is dezelfde code die in `index.html` staat — maar zet er dus nooit sleutels in.
